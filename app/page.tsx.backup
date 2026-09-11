@@ -1,0 +1,2246 @@
+"use client";
+
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+
+type Language = "es" | "ca" | "en" | "de";
+
+type TicketOffer = {
+  home: string;
+  away: string;
+  date: string;
+  stadium: string;
+  city: string;
+  price: string;
+  details?: string;
+};
+
+type WeatherType =
+  | "sun"
+  | "cloud"
+  | "rain";
+
+type WeatherData = {
+  city: string;
+  temperature: number;
+  type: WeatherType;
+  rain: number;
+  wind: number;
+
+  forecast: {
+    day:
+      | "today"
+      | "sat"
+      | "sun";
+
+    temp: number;
+
+    type:
+      | WeatherType
+      | "partly";
+  }[];
+};
+
+type SportsDbTeam = {
+  idTeam?: string | null;
+  strTeam?: string | null;
+  strTeamAlternate?: string | null;
+  strSport?: string | null;
+  strCountry?: string | null;
+  strLeague?: string | null;
+  strBadge?: string | null;
+};
+
+type SportsDbResponse = {
+  teams?: SportsDbTeam[] | null;
+};
+
+function HeartIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 21a8 8 0 0 0-16 0" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function CartIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="20" r="1" />
+      <circle cx="19" cy="20" r="1" />
+
+      <path d="M3 4h2l2.4 10.2a2 2 0 0 0 2 1.5h7.7a2 2 0 0 0 2-1.6L21 7H6" />
+    </svg>
+  );
+}
+
+const translations = {
+  es: {
+    hero1:
+      "VIVE EL FÚTBOL.",
+
+    hero2:
+      "SIÉNTELO",
+
+    live:
+      "EN DIRECTO.",
+
+    categories: [
+      [
+        "La Liga",
+        "Grandes partidos",
+      ],
+
+      [
+        "Copa del Rey",
+        "Partidos especiales",
+      ],
+
+      [
+        "Entradas infantiles",
+        "Para los pequeños aficionados",
+      ],
+
+      [
+        "Estadios",
+        "Todos los estadios",
+      ],
+
+      [
+        "Entradas VIP",
+        "Experiencias exclusivas",
+      ],
+    ],
+
+    aiTitle:
+      "Búsqueda de entradas con IA",
+
+    aiText:
+      "Dinos simplemente lo que buscas.",
+
+    aiPlaceholder:
+      "Ej. Barcelona contra Real Madrid, 2 adultos, 1 niño, presupuesto 500 €",
+
+    search:
+      "Buscar",
+
+    mapTitle:
+      "Descubre estadios",
+
+    mapText:
+      "Encuentra partidos por ciudad y estadio.",
+
+    recommendations:
+      "OFERTAS RECOMENDADAS",
+
+    searchResults:
+      "OFERTAS ENCONTRADAS",
+
+    showAll:
+      "Ver todas",
+
+    resetSearch:
+      "Restablecer búsqueda",
+
+    found:
+      "ofertas encontradas",
+
+    from:
+      "desde",
+
+    weatherTitle:
+      "TIEMPO EN EL LUGAR DEL PARTIDO",
+
+    rain:
+      "Lluvia",
+
+    wind:
+      "Viento",
+
+    sunny:
+      "Soleado",
+
+    cloudy:
+      "Nublado",
+
+    rainy:
+      "Lluvia",
+
+    partlyCloudy:
+      "Parcialmente nublado",
+
+    today:
+      "Hoy",
+
+    sat:
+      "Sáb",
+
+    sun:
+      "Dom",
+
+    may:
+      "mayo",
+
+    block:
+      "Sector",
+
+    row:
+      "Fila",
+
+    twoTicketsTogether:
+      "2 entradas · Asientos juntos",
+
+    verifiedSeller:
+      "2 entradas · Vendedor verificado",
+
+    immediatelyAvailable:
+      "2 entradas · Disponibles inmediatamente",
+  },
+
+  ca: {
+    hero1:
+      "VIU EL FUTBOL.",
+
+    hero2:
+      "SENT-LO",
+
+    live:
+      "EN DIRECTE.",
+
+    categories: [
+      [
+        "La Liga",
+        "Grans partits",
+      ],
+
+      [
+        "Copa del Rei",
+        "Partits especials",
+      ],
+
+      [
+        "Entrades infantils",
+        "Per als petits aficionats",
+      ],
+
+      [
+        "Estadis",
+        "Tots els estadis",
+      ],
+
+      [
+        "Entrades VIP",
+        "Experiències exclusives",
+      ],
+    ],
+
+    aiTitle:
+      "Cerca d'entrades amb IA",
+
+    aiText:
+      "Digues-nos simplement què busques.",
+
+    aiPlaceholder:
+      "Ex. Barcelona contra Real Madrid, 2 adults, 1 nen, pressupost 500 €",
+
+    search:
+      "Cercar",
+
+    mapTitle:
+      "Descobreix estadis",
+
+    mapText:
+      "Troba partits per ciutat i estadi.",
+
+    recommendations:
+      "OFERTES RECOMANADES",
+
+    searchResults:
+      "OFERTES TROBADES",
+
+    showAll:
+      "Veure totes",
+
+    resetSearch:
+      "Restablir cerca",
+
+    found:
+      "ofertes trobades",
+
+    from:
+      "des de",
+
+    weatherTitle:
+      "TEMPS AL LLOC DEL PARTIT",
+
+    rain:
+      "Pluja",
+
+    wind:
+      "Vent",
+
+    sunny:
+      "Assolellat",
+
+    cloudy:
+      "Ennuvolat",
+
+    rainy:
+      "Pluja",
+
+    partlyCloudy:
+      "Parcialment ennuvolat",
+
+    today:
+      "Avui",
+
+    sat:
+      "Ds",
+
+    sun:
+      "Dg",
+
+    may:
+      "maig",
+
+    block:
+      "Sector",
+
+    row:
+      "Fila",
+
+    twoTicketsTogether:
+      "2 entrades · Seients junts",
+
+    verifiedSeller:
+      "2 entrades · Venedor verificat",
+
+    immediatelyAvailable:
+      "2 entrades · Disponibles immediatament",
+  },
+
+  en: {
+    hero1:
+      "EXPERIENCE FOOTBALL.",
+
+    hero2:
+      "FEEL IT",
+
+    live:
+      "LIVE.",
+
+    categories: [
+      [
+        "La Liga",
+        "Top matches",
+      ],
+
+      [
+        "Copa del Rey",
+        "Special matches",
+      ],
+
+      [
+        "Kids tickets",
+        "For our young fans",
+      ],
+
+      [
+        "Stadiums",
+        "All arenas",
+      ],
+
+      [
+        "VIP tickets",
+        "Exclusive experiences",
+      ],
+    ],
+
+    aiTitle:
+      "AI Ticket Search",
+
+    aiText:
+      "Simply tell us what you're looking for.",
+
+    aiPlaceholder:
+      "e.g. Barcelona vs Real Madrid, 2 adults, 1 child, budget €500",
+
+    search:
+      "Search",
+
+    mapTitle:
+      "Discover stadiums",
+
+    mapText:
+      "Find matches by city and stadium.",
+
+    recommendations:
+      "RECOMMENDED OFFERS",
+
+    searchResults:
+      "MATCHING OFFERS",
+
+    showAll:
+      "Show all",
+
+    resetSearch:
+      "Reset search",
+
+    found:
+      "matching offers found",
+
+    from:
+      "from",
+
+    weatherTitle:
+      "WEATHER AT MATCH LOCATION",
+
+    rain:
+      "Rain",
+
+    wind:
+      "Wind",
+
+    sunny:
+      "Sunny",
+
+    cloudy:
+      "Cloudy",
+
+    rainy:
+      "Rain",
+
+    partlyCloudy:
+      "Partly cloudy",
+
+    today:
+      "Today",
+
+    sat:
+      "Sat",
+
+    sun:
+      "Sun",
+
+    may:
+      "May",
+
+    block:
+      "Block",
+
+    row:
+      "Row",
+
+    twoTicketsTogether:
+      "2 tickets · Seats together",
+
+    verifiedSeller:
+      "2 tickets · Verified seller",
+
+    immediatelyAvailable:
+      "2 tickets · Available immediately",
+  },
+
+  de: {
+    hero1:
+      "ERLEBE FUSSBALL.",
+
+    hero2:
+      "SPÜRE IHN",
+
+    live:
+      "LIVE.",
+
+    categories: [
+      [
+        "La Liga",
+        "Topspiele",
+      ],
+
+      [
+        "Copa del Rey",
+        "Besondere Spiele",
+      ],
+
+      [
+        "Kindertickets",
+        "Für unsere kleinen Fans",
+      ],
+
+      [
+        "Stadien",
+        "Alle Arenen",
+      ],
+
+      [
+        "VIP-Tickets",
+        "Exklusive Erlebnisse",
+      ],
+    ],
+
+    aiTitle:
+      "KI-Ticketsuche",
+
+    aiText:
+      "Sag uns einfach, was du suchst.",
+
+    aiPlaceholder:
+      "z. B. Barcelona gegen Real Madrid, 2 Erwachsene, 1 Kind, Budget 500 €",
+
+    search:
+      "Suchen",
+
+    mapTitle:
+      "Stadien entdecken",
+
+    mapText:
+      "Spiele nach Ort und Stadion finden.",
+
+    recommendations:
+      "EMPFOHLENE ANGEBOTE",
+
+    searchResults:
+      "PASSENDE ANGEBOTE",
+
+    showAll:
+      "Alle anzeigen",
+
+    resetSearch:
+      "Suche zurücksetzen",
+
+    found:
+      "passende Angebote gefunden",
+
+    from:
+      "ab",
+
+    weatherTitle:
+      "WETTER AM SPIELORT",
+
+    rain:
+      "Regen",
+
+    wind:
+      "Wind",
+
+    sunny:
+      "Sonnig",
+
+    cloudy:
+      "Bewölkt",
+
+    rainy:
+      "Regen",
+
+    partlyCloudy:
+      "Leicht bewölkt",
+
+    today:
+      "Heute",
+
+    sat:
+      "Sa",
+
+    sun:
+      "So",
+
+    may:
+      "Mai",
+
+    block:
+      "Block",
+
+    row:
+      "Reihe",
+
+    twoTicketsTogether:
+      "2 Tickets · Plätze nebeneinander",
+
+    verifiedSeller:
+      "2 Tickets · Verkäufer geprüft",
+
+    immediatelyAvailable:
+      "2 Tickets · Sofort verfügbar",
+  },
+} as const;
+
+const weatherByCity:
+  Record<
+    string,
+    WeatherData
+  > = {
+  Barcelona: {
+    city:
+      "Barcelona",
+
+    temperature:
+      22,
+
+    type:
+      "sun",
+
+    rain:
+      10,
+
+    wind:
+      12,
+
+    forecast: [
+      {
+        day:
+          "today",
+
+        temp:
+          22,
+
+        type:
+          "sun",
+      },
+
+      {
+        day:
+          "sat",
+
+        temp:
+          23,
+
+        type:
+          "sun",
+      },
+
+      {
+        day:
+          "sun",
+
+        temp:
+          21,
+
+        type:
+          "partly",
+      },
+    ],
+  },
+
+  Madrid: {
+    city:
+      "Madrid",
+
+    temperature:
+      25,
+
+    type:
+      "sun",
+
+    rain:
+      5,
+
+    wind:
+      9,
+
+    forecast: [
+      {
+        day:
+          "today",
+
+        temp:
+          25,
+
+        type:
+          "sun",
+      },
+
+      {
+        day:
+          "sat",
+
+        temp:
+          27,
+
+        type:
+          "sun",
+      },
+
+      {
+        day:
+          "sun",
+
+        temp:
+          24,
+
+        type:
+          "cloud",
+      },
+    ],
+  },
+
+  Sevilla: {
+    city:
+      "Sevilla",
+
+    temperature:
+      29,
+
+    type:
+      "sun",
+
+    rain:
+      0,
+
+    wind:
+      8,
+
+    forecast: [
+      {
+        day:
+          "today",
+
+        temp:
+          29,
+
+        type:
+          "sun",
+      },
+
+      {
+        day:
+          "sat",
+
+        temp:
+          31,
+
+        type:
+          "sun",
+      },
+
+      {
+        day:
+          "sun",
+
+        temp:
+          30,
+
+        type:
+          "sun",
+      },
+    ],
+  },
+};
+
+/*
+  TheSportsDB sucht manche Vereine
+  unter leicht anderen Namen.
+
+  Diese Zuordnung betrifft NUR
+  die automatische Wappensuche.
+*/
+
+const teamSearchNames:
+  Record<
+    string,
+    string
+  > = {
+  "FC Barcelona":
+    "Barcelona",
+
+  "Real Madrid":
+    "Real Madrid",
+
+  "Atlético de Madrid":
+    "Atletico Madrid",
+
+  "Sevilla FC":
+    "Sevilla",
+
+  "Real Betis":
+    "Real Betis",
+
+  "Valencia CF":
+    "Valencia",
+};
+
+/*
+  Einfacher Cache außerhalb der Komponente.
+
+  Dadurch wird ein Vereinswappen während
+  derselben Sitzung nicht ständig neu
+  von der API abgefragt.
+*/
+
+const teamBadgeCache:
+  Record<
+    string,
+    string | null
+  > = {};
+
+async function loadTeamBadge(
+  teamName: string
+): Promise<string | null> {
+  if (
+    Object.prototype.hasOwnProperty.call(
+      teamBadgeCache,
+      teamName
+    )
+  ) {
+    return teamBadgeCache[
+      teamName
+    ];
+  }
+
+  const searchName =
+    teamSearchNames[
+      teamName
+    ] ?? teamName;
+
+  try {
+    const response =
+      await fetch(
+        `https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=${encodeURIComponent(
+          searchName
+        )}`
+      );
+
+    if (
+      !response.ok
+    ) {
+      teamBadgeCache[
+        teamName
+      ] = null;
+
+      return null;
+    }
+
+    const data:
+      SportsDbResponse =
+      await response.json();
+
+    const teams =
+      Array.isArray(
+        data.teams
+      )
+        ? data.teams
+        : [];
+
+    /*
+      Wenn mehrere Treffer kommen,
+      bevorzugen wir Fußball/Soccer.
+    */
+
+    const footballTeam =
+      teams.find(
+        (team) =>
+          team.strSport
+            ?.toLowerCase()
+            .includes(
+              "soccer"
+            )
+      ) ??
+      teams[0];
+
+    const badge =
+      footballTeam
+        ?.strBadge ??
+      null;
+
+    teamBadgeCache[
+      teamName
+    ] = badge;
+
+    return badge;
+  } catch (
+    error
+  ) {
+    console.error(
+      `Wappen für ${teamName} konnte nicht geladen werden:`,
+      error
+    );
+
+    teamBadgeCache[
+      teamName
+    ] = null;
+
+    return null;
+  }
+}
+
+export default function Home() {
+  const [
+    language,
+    setLanguage,
+  ] =
+    useState<Language>(
+      "es"
+    );
+
+  const [
+    searchText,
+    setSearchText,
+  ] =
+    useState("");
+
+  const [
+    searchActive,
+    setSearchActive,
+  ] =
+    useState(false);
+
+  const [
+    selectedCity,
+    setSelectedCity,
+  ] =
+    useState(
+      "Barcelona"
+    );
+
+  const [
+    teamBadges,
+    setTeamBadges,
+  ] =
+    useState<
+      Record<
+        string,
+        string | null
+      >
+    >({});
+
+  const t =
+    translations[
+      language
+    ];
+
+  const standardOffers:
+    TicketOffer[] = [
+    {
+      home:
+        "FC Barcelona",
+
+      away:
+        "Real Madrid",
+
+      date:
+        `26 ${t.may} 2026 · 21:00`,
+
+      stadium:
+        "Camp Nou",
+
+      city:
+        "Barcelona",
+
+      price:
+        "89€",
+    },
+
+    {
+      home:
+        "Atlético de Madrid",
+
+      away:
+        "Sevilla FC",
+
+      date:
+        `27 ${t.may} 2026 · 19:00`,
+
+      stadium:
+        "Cívitas Metropolitano",
+
+      city:
+        "Madrid",
+
+      price:
+        "59€",
+    },
+
+    {
+      home:
+        "Real Betis",
+
+      away:
+        "Valencia CF",
+
+      date:
+        `28 ${t.may} 2026 · 18:30`,
+
+      stadium:
+        "Benito Villamarín",
+
+      city:
+        "Sevilla",
+
+      price:
+        "45€",
+    },
+  ];
+
+  const searchOffers:
+    TicketOffer[] = [
+    {
+      home:
+        "FC Barcelona",
+
+      away:
+        "Real Madrid",
+
+      date:
+        `26 ${t.may} 2026 · 21:00`,
+
+      stadium:
+        `Camp Nou · ${t.block} 112 · ${t.row} 8`,
+
+      city:
+        "Barcelona",
+
+      price:
+        "198€",
+
+      details:
+        t.twoTicketsTogether,
+    },
+
+    {
+      home:
+        "FC Barcelona",
+
+      away:
+        "Real Madrid",
+
+      date:
+        `26 ${t.may} 2026 · 21:00`,
+
+      stadium:
+        `Camp Nou · ${t.block} 205 · ${t.row} 14`,
+
+      city:
+        "Barcelona",
+
+      price:
+        "224€",
+
+      details:
+        t.verifiedSeller,
+    },
+
+    {
+      home:
+        "FC Barcelona",
+
+      away:
+        "Real Madrid",
+
+      date:
+        `26 ${t.may} 2026 · 21:00`,
+
+      stadium:
+        `Camp Nou · ${t.block} 310 · ${t.row} 5`,
+
+      city:
+        "Barcelona",
+
+      price:
+        "249€",
+
+      details:
+        t.immediatelyAvailable,
+    },
+  ];
+
+  const visibleOffers =
+    searchActive
+      ? searchOffers
+      : standardOffers;
+
+  /*
+    Alle aktuell sichtbaren Vereine
+    automatisch erfassen.
+  */
+
+  const visibleTeamNames =
+    useMemo(
+      () => {
+        const names =
+          new Set<string>();
+
+        visibleOffers.forEach(
+          (
+            offer
+          ) => {
+            names.add(
+              offer.home
+            );
+
+            names.add(
+              offer.away
+            );
+          }
+        );
+
+        return Array.from(
+          names
+        );
+      },
+      [
+        searchActive,
+        language,
+      ]
+    );
+
+  /*
+    Die Wappen automatisch laden.
+  */
+
+  useEffect(
+    () => {
+      let cancelled =
+        false;
+
+      async function loadBadges() {
+        const results =
+          await Promise.all(
+            visibleTeamNames.map(
+              async (
+                teamName
+              ) => {
+                const badge =
+                  await loadTeamBadge(
+                    teamName
+                  );
+
+                return [
+                  teamName,
+                  badge,
+                ] as const;
+              }
+            )
+          );
+
+        if (
+          cancelled
+        ) {
+          return;
+        }
+
+        setTeamBadges(
+          (
+            current
+          ) => {
+            const next = {
+              ...current,
+            };
+
+            results.forEach(
+              ([
+                teamName,
+                badge,
+              ]) => {
+                next[
+                  teamName
+                ] =
+                  badge;
+              }
+            );
+
+            return next;
+          }
+        );
+      }
+
+      loadBadges();
+
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+    [
+      visibleTeamNames,
+    ]
+  );
+
+  const weather =
+    weatherByCity[
+      selectedCity
+    ] ??
+    weatherByCity
+      .Barcelona;
+
+  const weatherClass =
+    weather.type ===
+    "rain"
+      ? "weather-rain"
+      : weather.type ===
+          "cloud"
+        ? "weather-cloud"
+        : "weather-sun";
+
+  function weatherText(
+    type:
+      | WeatherType
+      | "partly"
+  ) {
+    if (
+      type ===
+      "sun"
+    ) {
+      return t.sunny;
+    }
+
+    if (
+      type ===
+      "cloud"
+    ) {
+      return t.cloudy;
+    }
+
+    if (
+      type ===
+      "rain"
+    ) {
+      return t.rainy;
+    }
+
+    return t.partlyCloudy;
+  }
+
+  function forecastDay(
+    day:
+      | "today"
+      | "sat"
+      | "sun"
+  ) {
+    if (
+      day ===
+      "today"
+    ) {
+      return t.today;
+    }
+
+    if (
+      day ===
+      "sat"
+    ) {
+      return t.sat;
+    }
+
+    return t.sun;
+  }
+
+  const languageLabels:
+    Record<
+      Language,
+      string
+    > = {
+    es:
+      "Español",
+
+    ca:
+      "Català",
+
+    en:
+      "English",
+
+    de:
+      "Deutsch",
+  };
+
+  function handleSearch() {
+    if (
+      !searchText.trim()
+    ) {
+      return;
+    }
+
+    setSearchActive(
+      true
+    );
+
+    setSelectedCity(
+      "Barcelona"
+    );
+  }
+
+  function handleResetSearch() {
+    setSearchText("");
+
+    setSearchActive(
+      false
+    );
+  }
+
+  return (
+    <main className="site">
+      <div className="stadium-bg" />
+
+      {/* Fußball-Effekt – eigenständig, damit globals.css unangetastet bleibt */}
+      <style>{`
+        .pasespain-football-fx {
+          position: fixed;
+          inset: 0;
+          z-index: 2147483000;
+          pointer-events: none;
+          overflow: hidden;
+        }
+
+        .pasespain-football-ball {
+          position: absolute;
+          left: 50%;
+          top: 82%;
+          width: 108px;
+          height: 108px;
+          margin-left: -54px;
+          margin-top: -54px;
+          opacity: 0;
+          transform-origin: center;
+          will-change: transform, top, left, opacity, filter;
+          filter:
+            drop-shadow(0 12px 16px rgba(3, 15, 40, 0.34))
+            drop-shadow(0 0 3px rgba(255, 255, 255, 0.55));
+          animation:
+            pasesSpainFootballFly 8s cubic-bezier(.18,.72,.25,1)
+            0.7s infinite;
+        }
+
+        .pasespain-football-ball svg {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+
+        .pasespain-football-impact {
+          position: absolute;
+          left: 50%;
+          top: 47%;
+          width: 270px;
+          height: 270px;
+          margin-left: -135px;
+          margin-top: -135px;
+          border-radius: 50%;
+          opacity: 0;
+          transform: scale(.2);
+          will-change: opacity, transform;
+          animation:
+            pasesSpainFootballImpact 8s ease
+            0.7s infinite;
+        }
+
+        .pasespain-football-impact::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background:
+            radial-gradient(
+              circle,
+              rgba(255,255,255,.72) 0 2px,
+              rgba(255,255,255,.28) 3px,
+              rgba(255,255,255,.08) 15px,
+              transparent 42px
+            );
+          box-shadow:
+            0 0 22px rgba(255,255,255,.14);
+        }
+
+        .pasespain-football-crack {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 120px;
+          height: 1px;
+          transform-origin: left center;
+          background:
+            linear-gradient(
+              90deg,
+              rgba(255,255,255,.82),
+              rgba(255,255,255,.33) 46%,
+              transparent
+            );
+          filter: drop-shadow(0 0 2px rgba(255,255,255,.42));
+        }
+
+        .pasespain-football-crack:nth-child(1) { transform: rotate(8deg); }
+        .pasespain-football-crack:nth-child(2) { transform: rotate(49deg); }
+        .pasespain-football-crack:nth-child(3) { transform: rotate(93deg); }
+        .pasespain-football-crack:nth-child(4) { transform: rotate(141deg); }
+        .pasespain-football-crack:nth-child(5) { transform: rotate(194deg); }
+        .pasespain-football-crack:nth-child(6) { transform: rotate(252deg); }
+        .pasespain-football-crack:nth-child(7) { transform: rotate(309deg); }
+
+        @keyframes pasesSpainFootballFly {
+          0% {
+            left: 50%;
+            top: 84%;
+            opacity: 0;
+            transform: scale(.08) rotate(-28deg);
+            filter:
+              blur(1.1px)
+              drop-shadow(0 3px 4px rgba(3,15,40,.12));
+          }
+
+          4% {
+            left: 49.8%;
+            top: 81%;
+            opacity: .48;
+            transform: scale(.13) rotate(-18deg);
+          }
+
+          10% {
+            left: 50.35%;
+            top: 75%;
+            opacity: .70;
+            transform: scale(.25) rotate(4deg);
+          }
+
+          17% {
+            left: 49.7%;
+            top: 67%;
+            opacity: .86;
+            transform: scale(.44) rotate(31deg);
+          }
+
+          24% {
+            left: 50.25%;
+            top: 57%;
+            opacity: .96;
+            transform: scale(.76) rotate(62deg);
+            filter:
+              blur(0)
+              drop-shadow(0 10px 14px rgba(3,15,40,.28))
+              drop-shadow(0 0 3px rgba(255,255,255,.45));
+          }
+
+          30% {
+            left: 50%;
+            top: 48.5%;
+            opacity: 1;
+            transform: scale(1.16) rotate(91deg);
+          }
+
+          33% {
+            left: 50%;
+            top: 47%;
+            opacity: 1;
+            transform: scale(1.42) rotate(101deg);
+          }
+
+          36% {
+            left: 50%;
+            top: 47%;
+            opacity: .15;
+            transform: scale(1.62) rotate(109deg);
+          }
+
+          38%,
+          100% {
+            opacity: 0;
+          }
+        }
+
+        @keyframes pasesSpainFootballImpact {
+          0%,
+          29% {
+            opacity: 0;
+            transform: scale(.2);
+          }
+
+          31% {
+            opacity: 0;
+            transform: scale(.28);
+          }
+
+          33% {
+            opacity: .64;
+            transform: scale(.52);
+          }
+
+          35% {
+            opacity: .34;
+            transform: scale(.82);
+          }
+
+          39% {
+            opacity: .12;
+            transform: scale(1);
+          }
+
+          43%,
+          100% {
+            opacity: 0;
+            transform: scale(1.08);
+          }
+        }
+
+        @media (max-width: 700px) {
+          .pasespain-football-ball {
+            width: 82px;
+            height: 82px;
+            margin-left: -41px;
+            margin-top: -41px;
+          }
+
+          .pasespain-football-impact {
+            width: 190px;
+            height: 190px;
+            margin-left: -95px;
+            margin-top: -95px;
+          }
+
+          .pasespain-football-crack {
+            width: 84px;
+          }
+        }
+      `}</style>
+
+      <div
+        className="pasespain-football-fx"
+        aria-hidden="true"
+      >
+        <div className="pasespain-football-ball">
+          <svg
+            viewBox="0 0 120 120"
+            role="presentation"
+            focusable="false"
+          >
+            <defs>
+              <radialGradient
+                id="pasespainBallShade"
+                cx="34%"
+                cy="27%"
+                r="72%"
+              >
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="48%" stopColor="#f5f6f8" />
+                <stop offset="78%" stopColor="#d7dbe2" />
+                <stop offset="100%" stopColor="#8f98a6" />
+              </radialGradient>
+
+              <radialGradient
+                id="pasespainBallHighlight"
+                cx="50%"
+                cy="50%"
+                r="50%"
+              >
+                <stop offset="0%" stopColor="rgba(255,255,255,.95)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+              </radialGradient>
+
+              <clipPath id="pasespainBallClip">
+                <circle cx="60" cy="60" r="52" />
+              </clipPath>
+            </defs>
+
+            <circle
+              cx="60"
+              cy="60"
+              r="52"
+              fill="url(#pasespainBallShade)"
+              stroke="rgba(20,28,40,.72)"
+              strokeWidth="1.5"
+            />
+
+            <g
+              clipPath="url(#pasespainBallClip)"
+              fill="#101216"
+              stroke="#101216"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            >
+              <polygon points="60,38 72,47 67,61 53,61 48,47" />
+              <polygon points="28,29 40,31 45,42 36,52 23,47 19,36" />
+              <polygon points="92,28 102,36 100,49 87,53 78,44 81,32" />
+              <polygon points="19,71 30,62 43,68 43,82 31,89 20,83" />
+              <polygon points="101,70 110,80 105,93 92,98 82,88 86,74" />
+              <polygon points="52,91 66,87 77,97 73,111 57,116 46,106" />
+            </g>
+
+            <g
+              clipPath="url(#pasespainBallClip)"
+              fill="none"
+              stroke="rgba(35,41,52,.58)"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+            >
+              <path d="M48 47 39 33" />
+              <path d="M72 47 82 43" />
+              <path d="M53 61 42 70" />
+              <path d="M67 61 86 75" />
+              <path d="M60 38 59 22" />
+              <path d="M36 52 30 63" />
+              <path d="M87 53 101 61" />
+              <path d="M43 82 54 94" />
+              <path d="M82 88 74 99" />
+            </g>
+
+            <ellipse
+              cx="42"
+              cy="34"
+              rx="24"
+              ry="18"
+              fill="url(#pasespainBallHighlight)"
+              opacity=".42"
+            />
+          </svg>
+        </div>
+
+        <div className="pasespain-football-impact">
+          <span className="pasespain-football-crack" />
+          <span className="pasespain-football-crack" />
+          <span className="pasespain-football-crack" />
+          <span className="pasespain-football-crack" />
+          <span className="pasespain-football-crack" />
+          <span className="pasespain-football-crack" />
+          <span className="pasespain-football-crack" />
+        </div>
+      </div>
+
+      <div className="page-shell glass-shell">
+        <header className="header">
+          <div className="brand-text">
+            <span className="brand-pase">
+              Pase
+            </span>
+
+            <span className="brand-spain">
+              Spain
+            </span>
+          </div>
+
+          <div className="header-right">
+            <div className="language-switch">
+              <button
+                className={`language-flag language-es ${
+                  language ===
+                  "es"
+                    ? "language-active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setLanguage(
+                    "es"
+                  )
+                }
+                type="button"
+                aria-label={
+                  languageLabels
+                    .es
+                }
+                title={
+                  languageLabels
+                    .es
+                }
+              />
+
+              <button
+                className={`language-flag language-ca ${
+                  language ===
+                  "ca"
+                    ? "language-active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setLanguage(
+                    "ca"
+                  )
+                }
+                type="button"
+                aria-label={
+                  languageLabels
+                    .ca
+                }
+                title={
+                  languageLabels
+                    .ca
+                }
+              />
+
+              <button
+                className={`language-flag language-en ${
+                  language ===
+                  "en"
+                    ? "language-active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setLanguage(
+                    "en"
+                  )
+                }
+                type="button"
+                aria-label={
+                  languageLabels
+                    .en
+                }
+                title={
+                  languageLabels
+                    .en
+                }
+              />
+
+              <button
+                className={`language-flag language-de ${
+                  language ===
+                  "de"
+                    ? "language-active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setLanguage(
+                    "de"
+                  )
+                }
+                type="button"
+                aria-label={
+                  languageLabels
+                    .de
+                }
+                title={
+                  languageLabels
+                    .de
+                }
+              />
+            </div>
+
+            <div className="header-actions">
+              <button
+                className="icon-button neutral-glass modern-icon-button"
+                aria-label="Favoriten"
+                type="button"
+              >
+                <HeartIcon />
+              </button>
+
+              <button
+                className="icon-button neutral-glass modern-icon-button"
+                aria-label="Konto"
+                type="button"
+              >
+                <UserIcon />
+              </button>
+
+              <button
+                className="icon-button neutral-glass modern-icon-button cart"
+                aria-label="Warenkorb"
+                type="button"
+              >
+                <CartIcon />
+
+                <span className="cart-count">
+                  2
+                </span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="hero-category-zone">
+          <section className="hero">
+            <div className="hero-copy">
+              <h1>
+                {
+                  t.hero1
+                }
+
+                <br />
+
+                {
+                  t.hero2
+                }{" "}
+
+                <span className="gradient-text">
+                  {
+                    t.live
+                  }
+                </span>
+              </h1>
+            </div>
+
+            <div className="hero-art">
+              <Image
+                src="/pasespain-logo-transparent.png"
+                alt="PaseSpain"
+                width={700}
+                height={700}
+                priority
+                className="hero-logo"
+              />
+            </div>
+          </section>
+
+          <section className="category-grid">
+            {
+              t.categories.map(
+                ([
+                  title,
+                  text,
+                ]) => (
+                  <article
+                    className="category-card neutral-glass"
+                    key={
+                      title
+                    }
+                  >
+                    <div>
+                      <h3>
+                        {
+                          title
+                        }
+                      </h3>
+
+                      <p>
+                        {
+                          text
+                        }
+                      </p>
+                    </div>
+                  </article>
+                )
+              )
+            }
+          </section>
+        </div>
+
+        <section className="smart-grid">
+          <article className="smart-card neutral-glass">
+            <div className="smart-head smart-head-clean">
+              <div>
+                <h2>
+                  {
+                    t.aiTitle
+                  }
+                </h2>
+
+                <p>
+                  {
+                    t.aiText
+                  }
+                </p>
+              </div>
+            </div>
+
+            <div className="ai-search-box">
+              <textarea
+                placeholder={
+                  t.aiPlaceholder
+                }
+                rows={3}
+                value={
+                  searchText
+                }
+                onChange={(
+                  event
+                ) =>
+                  setSearchText(
+                    event
+                      .target
+                      .value
+                  )
+                }
+              />
+
+              <button
+                className="smart-action"
+                type="button"
+                onClick={
+                  handleSearch
+                }
+              >
+                {
+                  t.search
+                }
+
+                <span>
+                  →
+                </span>
+              </button>
+            </div>
+          </article>
+
+          <article className="smart-card neutral-glass">
+            <div className="smart-head smart-head-clean">
+              <div>
+                <h2>
+                  {
+                    t.mapTitle
+                  }
+                </h2>
+
+                <p>
+                  {
+                    t.mapText
+                  }
+                </p>
+              </div>
+            </div>
+
+            <a
+              className="map-preview google-map-preview"
+              href="https://www.google.com/maps/search/football+stadiums+Spain"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={
+                t.mapTitle
+              }
+            >
+              <iframe
+                src="https://www.google.com/maps?q=Spain&output=embed"
+                title="Google Maps"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="google-map-frame"
+              />
+
+              <span className="map-click-layer" />
+            </a>
+          </article>
+        </section>
+
+        <section className="content-grid">
+          <div className="matches-panel neutral-glass">
+            <div className="panel-heading">
+              <div>
+                <h2>
+                  {
+                    searchActive
+                      ? t.searchResults
+                      : t.recommendations
+                  }
+                </h2>
+
+                {
+                  searchActive && (
+                    <span className="result-count">
+                      {
+                        visibleOffers
+                          .length
+                      }{" "}
+
+                      {
+                        t.found
+                      }
+                    </span>
+                  )
+                }
+              </div>
+
+              {
+                searchActive
+                  ? (
+                    <button
+                      type="button"
+                      onClick={
+                        handleResetSearch
+                      }
+                    >
+                      {
+                        t.resetSearch
+                      }{" "}
+                      ×
+                    </button>
+                  )
+                  : (
+                    <button
+                      type="button"
+                    >
+                      {
+                        t.showAll
+                      }{" "}
+                      →
+                    </button>
+                  )
+              }
+            </div>
+
+            <div className="match-grid">
+              {
+                visibleOffers.map(
+                  (
+                    offer,
+                    index
+                  ) => {
+                    const homeBadge =
+                      teamBadges[
+                        offer.home
+                      ];
+
+                    const awayBadge =
+                      teamBadges[
+                        offer.away
+                      ];
+
+                    return (
+                      <article
+                        className="match-card neutral-glass ticket-watermark-card"
+                        key={`${offer.home}-${offer.away}-${index}`}
+                        onMouseEnter={() =>
+                          setSelectedCity(
+                            offer.city
+                          )
+                        }
+                      >
+                        {
+                          homeBadge && (
+                            <img
+                              src={
+                                homeBadge
+                              }
+                              alt=""
+                              aria-hidden="true"
+                              className="team-watermark team-watermark-left"
+                            />
+                          )
+                        }
+
+                        {
+                          awayBadge && (
+                            <img
+                              src={
+                                awayBadge
+                              }
+                              alt=""
+                              aria-hidden="true"
+                              className="team-watermark team-watermark-right"
+                            />
+                          )
+                        }
+
+                        <div className="ticket-card-content">
+                          <div className="teams">
+                            <div>
+                              <strong>
+                                {
+                                  offer.home
+                                }
+                              </strong>
+                            </div>
+
+                            <span className="versus">
+                              VS
+                            </span>
+
+                            <div>
+                              <strong>
+                                {
+                                  offer.away
+                                }
+                              </strong>
+                            </div>
+                          </div>
+
+                          <div className="match-info">
+                            <span>
+                              {
+                                offer.date
+                              }
+                            </span>
+
+                            <span>
+                              {
+                                offer.stadium
+                              }
+                            </span>
+
+                            {
+                              offer.details && (
+                                <span className="offer-details">
+                                  {
+                                    offer.details
+                                  }
+                                </span>
+                              )
+                            }
+                          </div>
+
+                          <div className="match-bottom">
+                            <div>
+                              <span className="from">
+                                {
+                                  t.from
+                                }
+                              </span>
+
+                              <strong>
+                                {
+                                  offer.price
+                                }
+                              </strong>
+                            </div>
+
+                            <button
+                              className="round-button neutral-glass"
+                              type="button"
+                              onClick={() =>
+                                setSelectedCity(
+                                  offer.city
+                                )
+                              }
+                            >
+                              →
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  }
+                )
+              }
+            </div>
+          </div>
+
+          <aside
+            className={`weather-panel neutral-glass ${weatherClass}`}
+          >
+            <div
+              className="weather-visual"
+              aria-hidden="true"
+            >
+              <span className="weather-visual-sun" />
+
+              <span className="weather-visual-cloud weather-cloud-one" />
+
+              <span className="weather-visual-cloud weather-cloud-two" />
+
+              <span className="weather-rain-lines">
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+            </div>
+
+            <div className="weather-heading">
+              <div>
+                <span className="weather-label">
+                  {
+                    t.weatherTitle
+                  }
+                </span>
+
+                <h2>
+                  {
+                    weather.city
+                  }
+                </h2>
+              </div>
+
+              <strong className="weather-temp">
+                {
+                  weather.temperature
+                }
+                °
+              </strong>
+            </div>
+
+            <div className="weather-condition">
+              {
+                weatherText(
+                  weather.type
+                )
+              }
+            </div>
+
+            <div className="weather-meta">
+              <div>
+                <span>
+                  {
+                    t.rain
+                  }
+                </span>
+
+                <strong>
+                  {
+                    weather.rain
+                  }
+                  %
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  {
+                    t.wind
+                  }
+                </span>
+
+                <strong>
+                  {
+                    weather.wind
+                  }{" "}
+                  km/h
+                </strong>
+              </div>
+            </div>
+
+            <div className="weather-forecast">
+              {
+                weather.forecast.map(
+                  (
+                    item,
+                    index
+                  ) => (
+                    <div
+                      className="forecast-item"
+                      key={`${item.day}-${index}`}
+                    >
+                      <span>
+                        {
+                          forecastDay(
+                            item.day
+                          )
+                        }
+                      </span>
+
+                      <strong>
+                        {
+                          item.temp
+                        }
+                        °
+                      </strong>
+
+                      <small>
+                        {
+                          weatherText(
+                            item.type
+                          )
+                        }
+                      </small>
+                    </div>
+                  )
+                )
+              }
+            </div>
+          </aside>
+        </section>
+      </div>
+    </main>
+  );
+}
