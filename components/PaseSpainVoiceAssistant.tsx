@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ConversationProvider, useConversation, useConversationClientTool } from "@elevenlabs/react";
 
 type AppLanguage = "es" | "ca" | "en" | "de";
 
@@ -12,6 +13,9 @@ type VoiceTicketOffer = {
   stadium: string;
   city: string;
   price: string;
+  unitPrice?: number;
+  ticketCount?: number;
+  childTickets?: number;
   details?: string;
 };
 
@@ -21,6 +25,7 @@ type Props = {
   language: AppLanguage;
   offers: VoiceTicketOffer[];
   onSearchTickets: (query: string) => void;
+  onAddToCart: (offer: VoiceTicketOffer) => { added: boolean; message: string };
 };
 
 type AssistantStatus = "idle" | "connecting" | "listening" | "speaking" | "error";
@@ -140,503 +145,194 @@ function filterOffers(offers: VoiceTicketOffer[], query: string) {
   return scored;
 }
 
-export default function PaseSpainVoiceAssistant({
+const AMELIA_AGENT_ID = "agent_3801m2ht749zewtazawfm5tg66xd";
+
+export default function PaseSpainVoiceAssistant(props: Props) {
+  return (
+    <ConversationProvider>
+      <PaseSpainVoiceAssistantInner {...props} />
+    </ConversationProvider>
+  );
+}
+
+function PaseSpainVoiceAssistantInner({
   open,
   onClose,
   language,
   offers,
   onSearchTickets,
+  onAddToCart,
 }: Props) {
-  const [status, setStatus] = useState<AssistantStatus>("idle");
   const [lastUserText, setLastUserText] = useState("");
   const [lastAssistantText, setLastAssistantText] = useState("");
   const [errorText, setErrorText] = useState("");
 
-  const peerRef = useRef<RTCPeerConnection | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const channelRef = useRef<RTCDataChannel | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const speechAbortRef = useRef<AbortController | null>(null);
-  const speechUrlRef = useRef<string | null>(null);
-  const lastSpokenTextRef = useRef("");
-  const isMalenaSpeakingRef = useRef(false);
-  const handledResponseIdsRef = useRef<Set<string>>(new Set());
-  const malenaStartedAtRef = useRef(0);
-  const localTicketReplyUntilRef = useRef(0);
-
   const text = uiText[language];
 
-  function sendEvent(payload: unknown) {
-    const channel = channelRef.current;
-    if (!channel || channel.readyState !== "open") return;
-    channel.send(JSON.stringify(payload));
-  }
+  const conversation = useConversation({
+    onMessage: (message: any) => {
+      const source = String(message?.source || "").toLowerCase();
+      const value = String(message?.message || "").trim();
+      if (!value) return;
 
-  function setMicrophoneEnabled(enabled: boolean) {
-    streamRef.current?.getAudioTracks().forEach(track => {
-      track.enabled = enabled;
-    });
-  }
+      if (source === "user") {
+        setLastUserText(value);
+      } else if (source === "ai" || source === "agent") {
+        setLastAssistantText(value);
+      }
+    },
+    onError: (error: any) => {
+      const message =
+        typeof error === "string"
+          ? error
+          : error instanceof Error
+            ? error.message
+            : String(error?.message || text.error);
 
-  async function speakWithMalena(value: string) {
-    const spokenText = value.trim();
-    const audio = audioRef.current;
-    if (!spokenText || !audio) return;
+      setErrorText(message);
+    },
+  });
 
-    // Genau eine laufende Malena-Ausgabe. Keine zweite TTS-Antwort darf
-    // eine bereits sprechende Amelia unterbrechen oder ersetzen.
-    if (isMalenaSpeakingRef.current) return;
+  useConversationClientTool(
+    "search_pasespain_tickets",
+    (parameters: Record<string, unknown>) => {
+      const query = String(parameters.query || "");
+      const cleanQuery = String(query || "").trim();
+      const matches = filterOffers(offers, cleanQuery);
 
-    speechAbortRef.current?.abort();
-    const controller = new AbortController();
-    speechAbortRef.current = controller;
+      if (cleanQuery) {
+        onSearchTickets(cleanQuery);
+      }
 
-    if (speechUrlRef.current) {
-      URL.revokeObjectURL(speechUrlRef.current);
-      speechUrlRef.current = null;
-    }
-
-    try {
-      setStatus("speaking");
-
-      const response = await fetch("/api/assistant/speech", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: spokenText }),
-        signal: controller.signal,
+      return JSON.stringify({
+        query: cleanQuery,
+        count: matches.length,
+        offers: matches.map(offer => ({
+          id: offer.id || null,
+          home: offer.home,
+          away: offer.away,
+          date: offer.date,
+          stadium: offer.stadium,
+          city: offer.city,
+          price: offer.price,
+          unitPrice: offer.unitPrice ?? null,
+          ticketCount: offer.ticketCount ?? null,
+          childTickets: offer.childTickets ?? null,
+          details: offer.details || null,
+        })),
       });
-
-      if (!response.ok) {
-        const message = await response.text().catch(() => "");
-        throw new Error(message || `Speech ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      if (controller.signal.aborted || !audioRef.current) return;
-
-      const url = URL.createObjectURL(blob);
-      speechUrlRef.current = url;
-
-      // Erst unmittelbar vor dem tatsächlichen Abspielen wird das Mikrofon
-      // stummgeschaltet. So bleibt Amelia während der TTS-Erzeugung hörbereit
-      // und Browser-Audio wird nicht unnötig blockiert.
-      audio.src = url;
-      audio.preload = "auto";
-
-      audio.onplay = () => {
-        isMalenaSpeakingRef.current = true;
-        malenaStartedAtRef.current = Date.now();
-        setMicrophoneEnabled(true);
-      };
-
-      audio.onended = () => {
-        if (speechUrlRef.current === url) {
-          URL.revokeObjectURL(url);
-          speechUrlRef.current = null;
-        }
-        isMalenaSpeakingRef.current = false;
-        setMicrophoneEnabled(true);
-        setStatus("listening");
-      };
-
-      audio.onerror = () => {
-        isMalenaSpeakingRef.current = false;
-        setMicrophoneEnabled(true);
-        setStatus("error");
-        setErrorText("Amelias Sprachausgabe konnte nicht abgespielt werden.");
-      };
-
-      await audio.play();
-    } catch (error) {
-      isMalenaSpeakingRef.current = false;
-      setMicrophoneEnabled(true);
-      if (!controller.signal.aborted) {
-        setErrorText(error instanceof Error ? error.message : text.error);
-        setStatus("error");
-      }
-    } finally {
-      if (speechAbortRef.current === controller) {
-        speechAbortRef.current = null;
-      }
     }
-  }
+  );
 
-  function looksLikeTicketSearch(value: string) {
-    const normalized = normalize(value);
+  useConversationClientTool(
+    "add_pasespain_ticket_to_cart",
+    (parameters: Record<string, unknown>) => {
+      const offerId = String(parameters.offerId || parameters.id || "").trim();
+      const home = String(parameters.home || "").trim();
+      const away = String(parameters.away || "").trim();
 
-    const ticketWords = [
-      "ticket", "tickets", "entrada", "entradas", "angebot", "angebote",
-      "offer", "offers", "oferta", "ofertas", "pasespain", "spiel", "partido",
-      "gegen", "contra", "vs", "verfugbar", "verfügbar", "disponible", "available",
-    ];
-
-    if (ticketWords.some(word => normalized.includes(normalize(word)))) {
-      return true;
-    }
-
-    return offers.some(offer => {
-      const candidates = [offer.home, offer.away, offer.city, offer.stadium]
-        .map(normalize)
-        .filter(Boolean);
-
-      return candidates.some(candidate =>
-        candidate.length >= 4 && normalized.includes(candidate)
+      const offer = offers.find(item =>
+        (offerId && item.id === offerId) ||
+        (home && away && normalize(item.home) === normalize(home) && normalize(item.away) === normalize(away))
       );
-    });
-  }
 
-  function formatOfferDate(value: string) {
-    const parsed = new Date(value);
-    if (!Number.isFinite(parsed.getTime())) return value;
+      if (!offer) {
+        return JSON.stringify({
+          added: false,
+          message: "Das gewünschte Ticket wurde nicht gefunden. Bitte zuerst die PaseSpain-Tickets suchen."
+        });
+      }
 
-    const locale =
-      language === "de" ? "de-CH" :
-      language === "en" ? "en-GB" :
-      language === "ca" ? "ca-ES" :
-      "es-ES";
-
-    return new Intl.DateTimeFormat(locale, {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(parsed);
-  }
-
-  function buildTicketPresentation(matches: VoiceTicketOffer[]) {
-    if (!matches.length) {
-      if (language === "de") return "Ich finde aktuell kein passendes PaseSpain-Angebot für diese Suche.";
-      if (language === "en") return "I cannot find a matching current PaseSpain ticket offer for that search.";
-      if (language === "ca") return "Ara mateix no trobo cap oferta actual de PaseSpain que coincideixi amb aquesta cerca.";
-      return "Ahora mismo no encuentro una oferta actual de PaseSpain que coincida con esa búsqueda.";
+      const result = onAddToCart(offer);
+      return JSON.stringify(result);
     }
+  );
 
-    const intro =
-      language === "de"
-        ? `Ich habe ${matches.length} aktuelle${matches.length === 1 ? "s" : ""} PaseSpain-Angebot${matches.length === 1 ? "" : "e"} gefunden.`
-        : language === "en"
-          ? `I found ${matches.length} current PaseSpain ticket offer${matches.length === 1 ? "" : "s"}.`
-          : language === "ca"
-            ? `He trobat ${matches.length} oferta${matches.length === 1 ? "" : "es"} actual${matches.length === 1 ? "" : "s"} de PaseSpain.`
-            : `He encontrado ${matches.length} oferta${matches.length === 1 ? "" : "s"} actual${matches.length === 1 ? "" : "es"} de PaseSpain.`;
+  useConversationClientTool(
+    "get_live_spain_info",
+    async (parameters: Record<string, unknown>) => {
+      const question = String(parameters.question || "");
+      const cleanQuestion = String(question || "").trim();
+      if (!cleanQuestion) return "No question provided.";
 
-    const details = matches.slice(0, 3).map((offer, index) => {
-      const date = formatOfferDate(offer.date);
-
-      if (language === "de") {
-        return `${index + 1}: ${offer.home} gegen ${offer.away}, ${date}, ${offer.stadium} in ${offer.city}, Preis ${offer.price}.`;
-      }
-      if (language === "en") {
-        return `${index + 1}: ${offer.home} against ${offer.away}, ${date}, ${offer.stadium} in ${offer.city}, price ${offer.price}.`;
-      }
-      if (language === "ca") {
-        return `${index + 1}: ${offer.home} contra ${offer.away}, ${date}, ${offer.stadium}, ${offer.city}, preu ${offer.price}.`;
-      }
-      return `${index + 1}: ${offer.home} contra ${offer.away}, ${date}, ${offer.stadium}, ${offer.city}, precio ${offer.price}.`;
-    });
-
-    return [intro, ...details].join(" ");
-  }
-
-  async function presentPaseSpainTickets(query: string) {
-    const matches = filterOffers(offers, query);
-    localTicketReplyUntilRef.current = Date.now() + 12000;
-
-    const presentation = buildTicketPresentation(matches);
-    setLastAssistantText(presentation);
-    lastSpokenTextRef.current = presentation;
-    await speakWithMalena(presentation);
-  }
-
-  async function handleToolCall(event: any) {
-    const name = String(event?.name || "");
-    const callId = String(event?.call_id || "");
-    if (!callId) return;
-
-    let args: Record<string, unknown> = {};
-    try {
-      args = JSON.parse(String(event?.arguments || "{}"));
-    } catch {
-      args = {};
-    }
-
-    if (name === "search_pasespain_tickets") {
-      const query = String(args.query || "").trim();
-      const matches = filterOffers(offers, query);
-      if (query) onSearchTickets(query);
-
-      sendEvent({
-        type: "conversation.item.create",
-        item: {
-          type: "function_call_output",
-          call_id: callId,
-          output: JSON.stringify({
-            query,
-            count: matches.length,
-            offers: matches.map(offer => ({
-              id: offer.id || null,
-              home: offer.home,
-              away: offer.away,
-              date: offer.date,
-              stadium: offer.stadium,
-              city: offer.city,
-              price: offer.price,
-              details: offer.details || null,
-            })),
-          }),
-        },
-      });
-      if (Date.now() > localTicketReplyUntilRef.current) {
-        sendEvent({ type: "response.create" });
-      }
-      return;
-    }
-
-    if (name === "get_live_spain_info") {
-      const question = String(args.question || "").trim();
-      let output = "No live information available.";
       try {
         const response = await fetch("/api/assistant/research", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question, language }),
+          body: JSON.stringify({ question: cleanQuestion, language }),
         });
-        const data = await response.json().catch(() => null) as { answer?: string; error?: string } | null;
-        output = response.ok && data?.answer ? data.answer : (data?.error || output);
+
+        const data = await response.json().catch(() => null) as {
+          answer?: string;
+          error?: string;
+        } | null;
+
+        if (response.ok && data?.answer) return data.answer;
+        return data?.error || "Live information is temporarily unavailable.";
       } catch {
-        output = "Live information is temporarily unavailable.";
-      }
-
-      sendEvent({
-        type: "conversation.item.create",
-        item: {
-          type: "function_call_output",
-          call_id: callId,
-          output,
-        },
-      });
-      sendEvent({ type: "response.create" });
-    }
-  }
-
-  function extractAssistantTranscript(event: any) {
-    if (event?.type !== "response.done") return "";
-
-    const responseId = String(event?.response?.id || "").trim();
-    if (responseId) {
-      if (handledResponseIdsRef.current.has(responseId)) return "";
-      handledResponseIdsRef.current.add(responseId);
-      // Die Menge klein halten; sie dient nur der Doppelereignis-Sperre.
-      if (handledResponseIdsRef.current.size > 40) {
-        const first = handledResponseIdsRef.current.values().next().value;
-        if (first) handledResponseIdsRef.current.delete(first);
+        return "Live information is temporarily unavailable.";
       }
     }
+  );
 
-    const output = Array.isArray(event?.response?.output)
-      ? event.response.output
-      : [];
+  const status: AssistantStatus =
+    conversation.status === "connecting"
+      ? "connecting"
+      : conversation.status === "connected"
+        ? conversation.isSpeaking
+          ? "speaking"
+          : "listening"
+        : errorText
+          ? "error"
+          : "idle";
 
-    for (const item of output) {
-      const content = Array.isArray(item?.content) ? item.content : [];
-      for (const part of content) {
-        const transcript = String(part?.transcript || part?.text || "").trim();
-        if (transcript) return transcript;
-      }
-    }
-
-    return "";
-  }
-
-  function speakAssistantTranscript(transcript: string) {
-    const clean = transcript.trim();
-    if (!clean || clean === lastSpokenTextRef.current) return;
-    if (isMalenaSpeakingRef.current) return;
-    lastSpokenTextRef.current = clean;
-    setLastAssistantText(clean);
-    void speakWithMalena(clean);
-  }
-
-  function handleRealtimeEvent(raw: string) {
-    let event: any;
+  async function stopAssistant() {
     try {
-      event = JSON.parse(raw);
+      if (conversation.status !== "disconnected") {
+        await conversation.endSession();
+      }
     } catch {
-      return;
+      // Beim Schließen soll ein bereits beendetes Gespräch keinen Folgefehler erzeugen.
     }
-
-    if (event.type === "input_audio_buffer.speech_started") {
-      // Kurzer Schutz gegen das eigene Lautsprecher-Echo direkt beim Start von Malena.
-      const justStarted =
-        isMalenaSpeakingRef.current &&
-        Date.now() - malenaStartedAtRef.current < 650;
-
-      if (!justStarted) {
-        speechAbortRef.current?.abort();
-        speechAbortRef.current = null;
-
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.removeAttribute("src");
-          audioRef.current.load();
-        }
-
-        isMalenaSpeakingRef.current = false;
-
-        if (speechUrlRef.current) {
-          URL.revokeObjectURL(speechUrlRef.current);
-          speechUrlRef.current = null;
-        }
-
-        setStatus("listening");
-      }
-    }
-
-    if (event.type === "conversation.item.input_audio_transcription.completed") {
-      const transcript = String(event.transcript || "").trim();
-
-      if (transcript) {
-        setLastUserText(transcript);
-
-        if (looksLikeTicketSearch(transcript)) {
-          void presentPaseSpainTickets(transcript);
-        } else {
-          localTicketReplyUntilRef.current = 0;
-        }
-      }
-    }
-
-    // Bei text-only Realtime kommt der fertige Text zuverlässig als output_text.done.
-    if (
-      event.type === "response.output_text.done" &&
-      Date.now() > localTicketReplyUntilRef.current
-    ) {
-      const transcript = String(event.text || "").trim();
-      if (transcript) speakAssistantTranscript(transcript);
-    }
-
-    const assistantTranscript = extractAssistantTranscript(event);
-    if (
-      assistantTranscript &&
-      Date.now() > localTicketReplyUntilRef.current
-    ) {
-      speakAssistantTranscript(assistantTranscript);
-    }
-
-    if (event.type === "response.function_call_arguments.done") {
-      void handleToolCall(event);
-    }
-
-    if (event.type === "error") {
-      const message = String(event?.error?.message || text.error);
-      setErrorText(message);
-      setStatus("error");
-    }
-  }
-
-  function stopAssistant() {
-    channelRef.current?.close();
-    channelRef.current = null;
-
-    peerRef.current?.close();
-    peerRef.current = null;
-
-    streamRef.current?.getTracks().forEach(track => track.stop());
-    streamRef.current = null;
-
-    speechAbortRef.current?.abort();
-    speechAbortRef.current = null;
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.srcObject = null;
-      audioRef.current.removeAttribute("src");
-      audioRef.current.load();
-    }
-
-    if (speechUrlRef.current) {
-      URL.revokeObjectURL(speechUrlRef.current);
-      speechUrlRef.current = null;
-    }
-
-    lastSpokenTextRef.current = "";
-    isMalenaSpeakingRef.current = false;
-    malenaStartedAtRef.current = 0;
-    localTicketReplyUntilRef.current = 0;
-    handledResponseIdsRef.current.clear();
-    setStatus("idle");
   }
 
   async function startAssistant() {
-    stopAssistant();
     setErrorText("");
     setLastUserText("");
     setLastAssistantText("");
-    lastSpokenTextRef.current = "";
-    handledResponseIdsRef.current.clear();
-    isMalenaSpeakingRef.current = false;
-    setStatus("connecting");
 
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
+      // Muss direkt aus dem Nutzer-Klick erfolgen, damit Browser/Mobilgeräte
+      // die Mikrofonfreigabe sauber an die ElevenAgents-Sitzung binden.
+      const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      permissionStream.getTracks().forEach(track => track.stop());
+
+      await conversation.startSession({
+        agentId: AMELIA_AGENT_ID,
       });
-      streamRef.current = mediaStream;
-
-      const pc = new RTCPeerConnection();
-      peerRef.current = pc;
-
-      // OpenAI Realtime bleibt für Mikrofon, Transkription, Dialoglogik und Tools aktiv.
-      // Die Realtime-Audiospur wird absichtlich NICHT abgespielt; Amelia spricht über Malena/ElevenLabs.
-      pc.ontrack = () => undefined;
-
-      mediaStream.getTracks().forEach(track => pc.addTrack(track, mediaStream));
-
-      const channel = pc.createDataChannel("oai-events");
-      channelRef.current = channel;
-      channel.onmessage = message => handleRealtimeEvent(String(message.data));
-      channel.onopen = () => {
-        setStatus("listening");
-        sendEvent({
-          type: "response.create",
-          response: {
-            instructions:
-              "Greet the visitor briefly in the current conversation language. Introduce yourself as Amelia, the PaseSpain assistant. You can help with PaseSpain, tickets, Spanish football, stadiums and match-day travel. Do not give a long introduction.",
-          },
-        });
-      };
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      const response = await fetch("/api/assistant/realtime", {
-        method: "POST",
-        headers: { "Content-Type": "application/sdp" },
-        body: offer.sdp || "",
-      });
-
-      if (!response.ok) {
-        const message = await response.text().catch(() => "");
-        throw new Error(message || `Realtime ${response.status}`);
-      }
-
-      const answerSdp = await response.text();
-      await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
     } catch (error) {
-      stopAssistant();
-      setStatus("error");
-      setErrorText(error instanceof Error ? error.message : text.error);
+      const message =
+        error instanceof DOMException && error.name === "NotAllowedError"
+          ? "Der Zugriff auf das Mikrofon wurde nicht erlaubt."
+          : error instanceof Error
+            ? error.message
+            : text.error;
+
+      setErrorText(message);
     }
   }
 
   useEffect(() => {
-    if (!open) stopAssistant();
-    return () => stopAssistant();
+    if (!open && conversation.status !== "disconnected") {
+      void conversation.endSession();
+    }
+
+    return () => {
+      if (conversation.status !== "disconnected") {
+        void conversation.endSession();
+      }
+    };
+    // Die Session soll ausschließlich auf Öffnen/Schließen des Amelia-Fensters reagieren.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -712,7 +408,6 @@ export default function PaseSpainVoiceAssistant({
         </button>
 
         <p className="ps-voice-privacy">{text.mic}</p>
-        <audio ref={audioRef} autoPlay playsInline />
       </div>
 
       <style jsx>{`

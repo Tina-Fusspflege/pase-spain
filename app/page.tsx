@@ -1327,6 +1327,16 @@ export default function Home() {
   ] = useState("");
 
   const [
+    sellerOfferEditId,
+    setSellerOfferEditId,
+  ] = useState<string | null>(null);
+
+  const [
+    sellerOfferDeletingId,
+    setSellerOfferDeletingId,
+  ] = useState<string | null>(null);
+
+  const [
     authEmail,
     setAuthEmail,
   ] = useState("");
@@ -1344,6 +1354,16 @@ export default function Home() {
   const [
     passwordResetLoading,
     setPasswordResetLoading,
+  ] = useState(false);
+
+  const [
+    passwordRecoveryToken,
+    setPasswordRecoveryToken,
+  ] = useState("");
+
+  const [
+    passwordRecoveryLoading,
+    setPasswordRecoveryLoading,
   ] = useState(false);
 
   const [
@@ -1417,6 +1437,11 @@ export default function Home() {
   ] = useState<"home" | "tickets" | "sell" | "more">("home");
 
   const [
+    mobileExpandedOfferId,
+    setMobileExpandedOfferId,
+  ] = useState<string | null>(null);
+
+  const [
     laLigaMatches,
     setLaLigaMatches,
   ] = useState<LaLigaEvent[]>([]);
@@ -1440,6 +1465,54 @@ export default function Home() {
     sellerOffers,
     setSellerOffers,
   ] = useState<TicketOffer[]>([]);
+
+  const [liveBoardIndex, setLiveBoardIndex] = useState(0);
+
+  const liveBoardOffers = sellerOffers.filter(
+    (offer, index, offers) =>
+      offers.findIndex(
+        (item) =>
+          item.home === offer.home &&
+          item.away === offer.away
+      ) === index
+  );
+
+  useEffect(() => {
+    if (liveBoardOffers.length < 2) {
+      setLiveBoardIndex(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setLiveBoardIndex((current) =>
+        (current + 1) % liveBoardOffers.length
+      );
+    }, 180000);
+
+    return () => window.clearInterval(timer);
+  }, [liveBoardOffers.length]);
+
+  const liveBoardOffer =
+    liveBoardOffers[liveBoardIndex] ??
+    liveBoardOffers[0] ??
+    null;
+
+  const renderFlapChars = (value: string, maxChars = 16) => {
+    const text = value
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, maxChars);
+
+    return Array.from(text).map((char, index) => (
+      <span
+        className={`pases-char-flap${char === " " ? " pases-char-space" : ""}`}
+        key={`${char}-${index}`}
+      >
+        {char === " " ? "\u00A0" : char}
+      </span>
+    ));
+  };
 
   const [
     cartItems,
@@ -1677,11 +1750,17 @@ export default function Home() {
   }
 
   const currentPaseSpainOffers =
-    sellerOffers.filter(
-      offer =>
-        ticketDateValue(offer.date) >=
-        new Date().setHours(0, 0, 0, 0)
-    );
+    sellerOffers
+      .filter(
+        offer =>
+          ticketDateValue(offer.date) >=
+          new Date().setHours(0, 0, 0, 0)
+      )
+      .sort(
+        (a, b) =>
+          ticketDateValue(a.date) -
+          ticketDateValue(b.date)
+      );
 
   const aiSearchStopWords =
     new Set([
@@ -1899,7 +1978,7 @@ export default function Home() {
           date.setDate(today.getDate() + offset);
 
           const response = await fetch(
-            `https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=${apiDate(date)}&s=Soccer&l=4335`,
+            `https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=${apiDate(date)}&s=Soccer`,
             { cache: "no-store" }
           );
 
@@ -1910,8 +1989,55 @@ export default function Home() {
           const data: LaLigaDayResponse = await response.json();
           const events = Array.isArray(data.events) ? data.events : [];
 
+          const spanishTeams = [
+            "Athletic Club",
+            "Athletic Bilbao",
+            "Atlético de Madrid",
+            "Atletico Madrid",
+            "CA Osasuna",
+            "Celta Vigo",
+            "RC Celta",
+            "Deportivo Alavés",
+            "Deportivo Alaves",
+            "Elche CF",
+            "FC Barcelona",
+            "Barcelona",
+            "Getafe CF",
+            "Levante UD",
+            "Málaga CF",
+            "Malaga CF",
+            "Racing Santander",
+            "R. Racing Club",
+            "Rayo Vallecano",
+            "RC Deportivo",
+            "Deportivo de La Coruña",
+            "RCD Espanyol",
+            "Espanyol",
+            "Real Betis",
+            "Real Madrid",
+            "Real Sociedad",
+            "Sevilla FC",
+            "Valencia CF",
+            "Villarreal CF",
+            "RCD Mallorca",
+            "Girona FC",
+          ].map((team) => team.toLowerCase());
+
           events.forEach((event) => {
+            const home = event.strHomeTeam?.toLowerCase() ?? "";
+            const away = event.strAwayTeam?.toLowerCase() ?? "";
+            const hasSpanishTeam = spanishTeams.some(
+              (team) =>
+                home === team ||
+                away === team ||
+                home.includes(team) ||
+                away.includes(team) ||
+                team.includes(home) ||
+                team.includes(away)
+            );
+
             if (
+              hasSpanishTeam &&
               event.strHomeTeam &&
               event.strAwayTeam &&
               !found.some((item) => item.idEvent === event.idEvent)
@@ -2346,6 +2472,31 @@ export default function Home() {
       return;
     }
 
+    const recoveryParams = new URLSearchParams(
+      window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : window.location.hash
+    );
+    const recoveryToken = recoveryParams.get("access_token");
+    const recoveryType = recoveryParams.get("type");
+
+    if (recoveryType === "recovery" && recoveryToken) {
+      setPasswordRecoveryToken(recoveryToken);
+      setAuthPassword("");
+      setAuthMode("login");
+      setAuthModalOpen(true);
+      setAuthError(
+        language === "de"
+          ? "Bitte neues Passwort eingeben."
+          : language === "en"
+            ? "Please enter a new password."
+            : language === "ca"
+              ? "Introdueix una contrasenya nova."
+              : "Introduce una contraseña nueva."
+      );
+      return;
+    }
+
     const stored = window.localStorage.getItem(PASESPAIN_SESSION_KEY);
 
     if (!stored) {
@@ -2611,7 +2762,7 @@ export default function Home() {
     try {
       const response =
         await fetch(
-          `${SUPABASE_URL}/rest/v1/ticket_offers?select=id,seller_id,home,away,match_date,stadium,city,price_eur,details,created_at&order=created_at.desc&limit=50`,
+          `${SUPABASE_URL}/rest/v1/ticket_offers?select=id,seller_id,home,away,match_date,stadium,city,price_eur,details,created_at&status=eq.available&order=created_at.desc&limit=50`,
           {
             headers: {
               apikey:
@@ -2712,7 +2863,14 @@ export default function Home() {
     setAuthError("");
 
     try {
-      const response = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}${window.location.pathname}`
+          : "";
+
+      const response = await fetch(
+        `${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
+        {
         method: "POST",
         headers: {
           apikey: SUPABASE_PUBLISHABLE_KEY,
@@ -2721,7 +2879,8 @@ export default function Home() {
         body: JSON.stringify({
           email: authEmail.trim(),
         }),
-      });
+      }
+      );
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -2745,6 +2904,82 @@ export default function Home() {
       );
     } finally {
       setPasswordResetLoading(false);
+    }
+  }
+
+  async function handlePasswordRecovery(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (!passwordRecoveryToken) {
+      setAuthError("Reset-Link ist ungültig oder abgelaufen.");
+      return;
+    }
+
+    if (authPassword.trim().length < 6) {
+      setAuthError(
+        language === "de"
+          ? "Das neue Passwort muss mindestens 6 Zeichen haben."
+          : language === "en"
+            ? "The new password must be at least 6 characters."
+            : language === "ca"
+              ? "La contrasenya nova ha de tenir almenys 6 caràcters."
+              : "La nueva contraseña debe tener al menos 6 caracteres."
+      );
+      return;
+    }
+
+    setPasswordRecoveryLoading(true);
+    setAuthError("");
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        method: "PUT",
+        headers: {
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${passwordRecoveryToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password: authPassword }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(
+          data?.msg ||
+          data?.error_description ||
+          data?.error ||
+          "Passwort konnte nicht geändert werden."
+        );
+      }
+
+      setPasswordRecoveryToken("");
+      setAuthPassword("");
+      if (typeof window !== "undefined") {
+        window.history.replaceState(
+          {},
+          document.title,
+          `${window.location.pathname}${window.location.search}`
+        );
+      }
+      setAuthError(
+        language === "de"
+          ? "Passwort geändert. Du kannst dich jetzt anmelden."
+          : language === "en"
+            ? "Password changed. You can now sign in."
+            : language === "ca"
+              ? "Contrasenya canviada. Ja pots iniciar sessió."
+              : "Contraseña cambiada. Ya puedes iniciar sesión."
+      );
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "Passwort konnte nicht geändert werden."
+      );
+    } finally {
+      setPasswordRecoveryLoading(false);
     }
   }
 
@@ -3007,25 +3242,7 @@ export default function Home() {
         );
       }
 
-      if (actualRole !== activeAuthRole) {
-        throw new Error(
-          language === "de"
-            ? actualRole === "buyer"
-              ? "Dieses Konto ist ein Käuferkonto und kann sich nicht als Verkäufer anmelden."
-              : "Dieses Konto ist ein Verkäuferkonto und kann sich nicht als Käufer anmelden."
-            : language === "en"
-              ? actualRole === "buyer"
-                ? "This is a buyer account and cannot sign in as a seller."
-                : "This is a seller account and cannot sign in as a buyer."
-              : language === "ca"
-                ? actualRole === "buyer"
-                  ? "Aquest és un compte de comprador i no pot iniciar sessió com a venedor."
-                  : "Aquest és un compte de venedor i no pot iniciar sessió com a comprador."
-                : actualRole === "buyer"
-                  ? "Esta es una cuenta de comprador y no puede iniciar sesión como vendedor."
-                  : "Esta es una cuenta de vendedor y no puede iniciar sesión como comprador."
-        );
-      }
+      
 
       const session: SupabaseSession = {
         access_token:
@@ -3109,7 +3326,7 @@ export default function Home() {
       }
 
       setLoggedInRole(
-        actualRole
+        activeAuthRole
       );
       setAuthError("");
       setAuthModalOpen(
@@ -3139,6 +3356,218 @@ export default function Home() {
       setAuthLoading(
         false
       );
+    }
+  }
+
+  function sellerDetailValue(
+    details: string | undefined,
+    label: string
+  ) {
+    if (!details) return "";
+
+    const line = details
+      .split("\n")
+      .find(item =>
+        item.toLowerCase().startsWith(`${label.toLowerCase()}:`)
+      );
+
+    return line
+      ? line.slice(line.indexOf(":") + 1).trim()
+      : "";
+  }
+
+  function translatedOfferDetails(details: string | undefined) {
+    if (!details) return "";
+
+    const labels: Record<Language, Record<string, string>> = {
+      de: { "Wettbewerb": "Wettbewerb", "Termin": "Termin", "Anzahl Tickets": "Anzahl Tickets", "Zone / Tribüne": "Zone / Tribüne", "Sektor": "Sektor", "Reihe": "Reihe", "Kindertickets": "Kindertickets", "Kindertickets Beschreibung": "Kindertickets Beschreibung" },
+      en: { "Wettbewerb": "Competition", "Termin": "Date", "Anzahl Tickets": "Number of tickets", "Zone / Tribüne": "Stand / Zone", "Sektor": "Sector", "Reihe": "Row", "Kindertickets": "Child tickets", "Kindertickets Beschreibung": "Child ticket details" },
+      ca: { "Wettbewerb": "Competició", "Termin": "Data", "Anzahl Tickets": "Nombre d’entrades", "Zone / Tribüne": "Tribuna / Zona", "Sektor": "Sector", "Reihe": "Fila", "Kindertickets": "Entrades infantils", "Kindertickets Beschreibung": "Detalls de les entrades infantils" },
+      es: { "Wettbewerb": "Competición", "Termin": "Fecha", "Anzahl Tickets": "Número de entradas", "Zone / Tribüne": "Tribuna / Zona", "Sektor": "Sector", "Reihe": "Fila", "Kindertickets": "Entradas infantiles", "Kindertickets Beschreibung": "Detalles de entradas infantiles" },
+    };
+
+    return details.split("\n").map((line) => {
+      const separator = line.indexOf(":");
+      if (separator < 0) return line;
+      const rawLabel = line.slice(0, separator).trim();
+      let value = line.slice(separator + 1).trim();
+      const translatedLabel = labels[language][rawLabel];
+      if (!translatedLabel) return line;
+
+      if (rawLabel === "Termin") {
+        const lower = value.toLowerCase();
+        if (lower.includes("noch nicht bestätigt")) {
+          value = language === "de" ? "Noch nicht bestätigt" : language === "en" ? "Not confirmed yet" : language === "ca" ? "Encara no confirmada" : "Aún no confirmada";
+        } else if (lower.includes("bestätigt")) {
+          value = language === "de" ? "Bestätigt" : language === "en" ? "Confirmed" : language === "ca" ? "Confirmada" : "Confirmada";
+        }
+      }
+
+      return `${translatedLabel}: ${value}`;
+    }).join("\n");
+  }
+
+  function startSellerOfferEdit(
+    offer: TicketOffer
+  ) {
+    if (!offer.id) return;
+
+    const details = offer.details || "";
+    const dateStatus = sellerDetailValue(details, "Termin");
+    const dateIsOpen =
+      dateStatus.toLowerCase().includes("noch nicht bestätigt") ||
+      offer.date.startsWith("2099-12-31");
+
+    const structuredPrefixes = [
+      "Wettbewerb:",
+      "Termin:",
+      "Anzahl Tickets:",
+      "Zone / Tribüne:",
+      "Sektor:",
+      "Kindertickets:",
+      "Kindertickets Beschreibung:",
+    ];
+
+    const freeDescription = details
+      .split("\n")
+      .filter(line =>
+        line.trim() &&
+        !structuredPrefixes.some(prefix =>
+          line.trim().startsWith(prefix)
+        )
+      )
+      .join("\n");
+
+    setSellerOfferEditId(offer.id);
+    setSellerCompetition(
+      sellerDetailValue(details, "Wettbewerb") || "LaLiga"
+    );
+    setSellerHome(offer.home);
+    setSellerAway(offer.away);
+    setSellerDate(dateIsOpen ? "" : offer.date.slice(0, 16));
+    setSellerDateOpen(dateIsOpen);
+    setSellerStadium(offer.stadium);
+    setSellerZone(sellerDetailValue(details, "Zone / Tribüne"));
+    setSellerSector(sellerDetailValue(details, "Reihe") || sellerDetailValue(details, "Sektor"));
+    setSellerCity(offer.city || "");
+    setSellerPrice(offer.price.replace("€", "").trim());
+    setSellerTicketCount(
+      sellerDetailValue(details, "Anzahl Tickets") ||
+      String(offer.ticketCount || 1)
+    );
+    setSellerChildTickets(
+      sellerDetailValue(details, "Kindertickets") ||
+      String(offer.childTickets || 0)
+    );
+    setSellerChildTicketDescription(
+      sellerDetailValue(details, "Kindertickets Beschreibung")
+    );
+    setSellerDescription(freeDescription);
+    setSellerFairplayAccepted(true);
+    setSellerPublishError("");
+    setMobilePage("sell");
+    setSellerModalOpen(true);
+  }
+
+  function cancelSellerOfferEdit() {
+    setSellerOfferEditId(null);
+    setSellerMatchSelection("");
+    setSellerCompetition("LaLiga");
+    setSellerHome("");
+    setSellerAway("");
+    setSellerDate("");
+    setSellerDateOpen(false);
+    setSellerStadium("");
+    setSellerZone("");
+    setSellerSector("");
+    setSellerCity("");
+    setSellerPrice("");
+    setSellerTicketCount("");
+    setSellerChildTickets("");
+    setSellerChildTicketDescription("");
+    setSellerDescription("");
+    setSellerFairplayAccepted(false);
+    setSellerPublishError("");
+  }
+
+  async function handleSellerOfferDelete(
+    offer: TicketOffer
+  ) {
+    if (
+      loggedInRole !== "seller" ||
+      !offer.id ||
+      !supabaseSession?.access_token ||
+      !supabaseSession.user?.id ||
+      offer.sellerId !== supabaseSession.user.id
+    ) {
+      setSellerPriceEditError(
+        language === "de"
+          ? "Dieses Ticket kann nicht gelöscht werden."
+          : language === "en"
+            ? "This ticket cannot be deleted."
+            : language === "ca"
+              ? "Aquesta entrada no es pot eliminar."
+              : "Esta entrada no se puede eliminar."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      language === "de"
+        ? `Ticket ${offer.home} – ${offer.away} wirklich löschen?`
+        : language === "en"
+          ? `Really delete ${offer.home} – ${offer.away}?`
+          : language === "ca"
+            ? `Vols eliminar realment ${offer.home} – ${offer.away}?`
+            : `¿Eliminar realmente ${offer.home} – ${offer.away}?`
+    );
+
+    if (!confirmed) return;
+
+    setSellerOfferDeletingId(offer.id);
+    setSellerPriceEditError("");
+
+    try {
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/ticket_offers?id=eq.${encodeURIComponent(
+          offer.id
+        )}&seller_id=eq.${encodeURIComponent(
+          supabaseSession.user.id
+        )}`,
+        {
+          method: "DELETE",
+          headers: {
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${supabaseSession.access_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const deleteError = await response.text();
+        throw new Error(
+          deleteError ||
+          (language === "de"
+            ? "Ticket konnte nicht gelöscht werden."
+            : "Ticket could not be deleted.")
+        );
+      }
+
+      setSellerOffers(current =>
+        current.filter(item => item.id !== offer.id)
+      );
+
+      if (sellerOfferEditId === offer.id) {
+        cancelSellerOfferEdit();
+      }
+    } catch (error) {
+      setSellerPriceEditError(
+        error instanceof Error
+          ? error.message
+          : "Ticket konnte nicht gelöscht werden."
+      );
+    } finally {
+      setSellerOfferDeletingId(null);
     }
   }
 
@@ -3478,8 +3907,8 @@ export default function Home() {
       !sellerAway.trim() ||
       (!sellerDateOpen && !sellerDate.trim()) ||
       !sellerStadium.trim() ||
-      !sellerZone.trim() ||
-      !sellerSector.trim() ||
+      (!sellerOfferEditId && !sellerZone.trim()) ||
+      (!sellerOfferEditId && !sellerSector.trim()) ||
       !sellerPrice.trim() ||
       !sellerTicketCount.trim()
     ) {
@@ -3593,11 +4022,48 @@ export default function Home() {
     setSellerPublishError("");
 
     try {
+      if (!sellerDateOpen) {
+        const verifyResponse = await fetch("/api/verify-match", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            competition: sellerCompetition.trim(),
+            home: sellerHome.trim(),
+            away: sellerAway.trim(),
+            date: sellerDate.trim(),
+            stadium: sellerStadium.trim(),
+          }),
+        });
+
+        const verification = (await verifyResponse.json().catch(() => null)) as
+          | { verified?: boolean; message?: string }
+          | null;
+
+        if (!verifyResponse.ok || !verification?.verified) {
+          throw new Error(
+            verification?.message ||
+              (language === "de"
+                ? "Spielangaben konnten nicht bestätigt werden. Bitte Teams, Datum und Stadion prüfen."
+                : language === "en"
+                  ? "Match details could not be verified. Please check teams, date and stadium."
+                  : language === "ca"
+                    ? "No s'han pogut verificar les dades del partit. Revisa els equips, la data i l'estadi."
+                    : "No se han podido verificar los datos del partido. Revisa equipos, fecha y estadio.")
+          );
+        }
+      }
+
       const response =
         await fetch(
-          `${SUPABASE_URL}/rest/v1/ticket_offers`,
+          sellerOfferEditId
+            ? `${SUPABASE_URL}/rest/v1/ticket_offers?id=eq.${encodeURIComponent(
+                sellerOfferEditId
+              )}&seller_id=eq.${encodeURIComponent(
+                supabaseSession.user.id
+              )}`
+            : `${SUPABASE_URL}/rest/v1/ticket_offers`,
           {
-            method: "POST",
+            method: sellerOfferEditId ? "PATCH" : "POST",
             headers: {
               apikey:
                 SUPABASE_PUBLISHABLE_KEY,
@@ -3634,7 +4100,7 @@ export default function Home() {
                       : "Termin: Bestätigt",
                     `Anzahl Tickets: ${numericTicketCount}`,
                     `Zone / Tribüne: ${sellerZone.trim()}`,
-                    `Sektor: ${sellerSector.trim()}`,
+                    `Reihe: ${sellerSector.trim()}`,
                     `Kindertickets: ${numericChildTickets}`,
                     sellerChildTicketDescription.trim()
                       ? `Kindertickets Beschreibung: ${sellerChildTicketDescription.trim()}`
@@ -3664,31 +4130,33 @@ export default function Home() {
             ) as TicketOfferRow[])
           : [];
 
-      if (
-        rows[0]
-      ) {
-        setSellerOffers(
-          current => [
-            rowToTicketOffer(
-              rows[0]
-            ),
-            ...current.filter(
-              offer =>
-                !(
-                  offer.home ===
-                    rows[0].home &&
-                  offer.away ===
-                    rows[0].away &&
-                  offer.date ===
-                    rows[0].match_date
-                )
-            ),
-          ]
+      if (rows[0]) {
+        const savedOffer = rowToTicketOffer(rows[0]);
+
+        setSellerOffers(current =>
+          sellerOfferEditId
+            ? current.map(offer =>
+                offer.id === savedOffer.id
+                  ? savedOffer
+                  : offer
+              )
+            : [
+                savedOffer,
+                ...current.filter(
+                  offer =>
+                    !(
+                      offer.home === rows[0].home &&
+                      offer.away === rows[0].away &&
+                      offer.date === rows[0].match_date
+                    )
+                ),
+              ]
         );
       } else {
         await loadPublishedOffers();
       }
 
+      setSellerOfferEditId(null);
       setSellerMatchSelection("");
       setSellerCompetition("LaLiga");
       setSellerHome("");
@@ -3700,6 +4168,9 @@ export default function Home() {
       setSellerSector("");
       setSellerCity("");
       setSellerPrice("");
+      setSellerTicketCount("");
+      setSellerChildTickets("");
+      setSellerChildTicketDescription("");
       setSellerDescription("");
       setSellerFairplayAccepted(false);
       setSellerModalOpen(
@@ -4054,6 +4525,352 @@ export default function Home() {
           gap: 10px;
           position: relative;
           overflow: hidden;
+        }
+
+        @media (min-width: 761px) {
+          .pases-scoreboard {
+            min-height: 280px;
+            height: 280px;
+            padding: 20px 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 12px;
+            overflow: hidden;
+            background: rgba(255,255,255,.10) !important;
+            backdrop-filter: blur(14px) saturate(1.12);
+            -webkit-backdrop-filter: blur(14px) saturate(1.12);
+            color: rgba(255,255,255,.96);
+          }
+
+          .pases-scoreboard-top {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 950;
+            letter-spacing: .08em;
+            color: #fff;
+            text-shadow: 0 2px 8px rgba(0,0,0,.72);
+          }
+
+          .pases-live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff3b30;
+            box-shadow: 0 0 10px rgba(255,59,48,.72);
+          }
+
+          .pases-brand-gradient {
+            background: linear-gradient(90deg, #4f8cff 0%, #49d6a5 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+          }
+
+          .pases-live-word {
+            color: #ff4b45;
+            -webkit-text-fill-color: #ff4b45;
+          }
+
+          .spain-ad-card {
+            position: relative;
+            overflow: hidden;
+          }
+
+          .spain-ad-card::before {
+            content: "";
+            position: absolute;
+            inset: 10px;
+            background: url("/pasespain-logo-transparent.png") center / 88% auto no-repeat;
+            opacity: .38;
+            pointer-events: none;
+            z-index: 0;
+          }
+
+          .spain-ad-card > * {
+            position: relative;
+            z-index: 1;
+          }
+
+          .pases-scoreboard-kicker {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 850;
+            letter-spacing: .14em;
+            color: #fff;
+            text-shadow: 0 2px 7px rgba(0,0,0,.72);
+          }
+
+          .pases-scoreboard-match {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 10px;
+            text-align: center;
+            font-size: 20px;
+            line-height: 1.15;
+            font-weight: 950;
+            color: #fff;
+            text-shadow: 0 2px 8px rgba(0,0,0,.78);
+          }
+
+          .pases-scoreboard-match b {
+            font-size: 12px;
+            color: #fff;
+          }
+
+          .pases-scoreboard-price,
+          .pases-scoreboard-message {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 950;
+            letter-spacing: .06em;
+            color: #fff;
+            text-shadow: 0 2px 8px rgba(0,0,0,.78);
+          }
+
+          .pases-flap-changing {
+            width: 100%;
+            padding: 10px 8px 9px;
+            border: 1px solid rgba(255,255,255,.11);
+            border-radius: 5px;
+            background: linear-gradient(180deg,#111315 0%,#050607 100%);
+            box-shadow:
+              inset 0 1px 0 rgba(255,255,255,.07),
+              inset 0 -10px 22px rgba(0,0,0,.42),
+              0 7px 16px rgba(0,0,0,.34);
+          }
+
+          .pases-flap-changing .pases-scoreboard-kicker {
+            margin: 0 0 7px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255,255,255,.11);
+            font-size: 9px;
+            letter-spacing: .15em;
+          }
+
+          .pases-char-line {
+            display: flex;
+            justify-content: center;
+            gap: 2px;
+            min-width: 0;
+            margin: 3px 0;
+            overflow: hidden;
+          }
+
+          .pases-char-flap {
+            position: relative;
+            flex: 0 1 16px;
+            min-width: 10px;
+            max-width: 16px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 1px solid #020203;
+            border-radius: 2px;
+            background:
+              linear-gradient(180deg,
+                #292c30 0%,
+                #17191c 47%,
+                #050607 48%,
+                #050607 52%,
+                #15171a 53%,
+                #090a0b 100%);
+            box-shadow:
+              inset 0 1px 0 rgba(255,255,255,.12),
+              inset 0 -1px 0 rgba(0,0,0,.95),
+              0 1px 2px rgba(0,0,0,.75);
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            font-family: "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1;
+            font-weight: 900;
+            text-align: center;
+            text-shadow:
+              0 1px 0 #000,
+              0 0 4px rgba(255,255,255,.38);
+          }
+
+          .pases-char-flap::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 1px;
+            background: #000;
+            box-shadow: 0 1px 0 rgba(255,255,255,.07);
+          }
+
+          .pases-char-space {
+            opacity: .38;
+          }
+
+          .pases-board-vs {
+            margin: 2px 0;
+            text-align: center;
+            color: rgba(255,255,255,.72);
+            font-family: "Courier New", monospace;
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: .18em;
+          }
+
+          .pases-price-line {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255,255,255,.10);
+          }
+
+          .pases-price-line .pases-char-flap {
+            flex-basis: 18px;
+            max-width: 18px;
+            height: 30px;
+            font-size: 14px;
+          }
+
+          @keyframes pasesBoardChange {
+            0% { transform: perspective(520px) rotateX(0deg); opacity: 1; }
+            44% { transform: perspective(520px) rotateX(-12deg); opacity: .72; }
+            55% { transform: perspective(520px) rotateX(10deg); opacity: .78; }
+            100% { transform: perspective(520px) rotateX(0deg); opacity: 1; }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .pases-flap-changing { animation: none; }
+          }
+
+          .spain-ad-card-large {
+            min-height: 235px !important;
+          }
+        }
+
+        @media (min-width: 761px) {
+          .spain-side-column {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            align-self: start;
+          }
+
+          .spain-side-column .spain-schedule-card {
+            min-height: 0;
+            height: auto;
+            padding-bottom: 14px;
+          }
+
+          .spain-ad-card {
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            gap: 7px;
+            padding: 18px;
+          }
+
+          .spain-ad-label {
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            opacity: .62;
+          }
+
+          .spain-ad-title {
+            font-size: 15px;
+            line-height: 1.25;
+            font-weight: 850;
+          }
+
+          .spain-ad-text {
+            font-size: 11px;
+            line-height: 1.35;
+            font-weight: 650;
+            opacity: .76;
+          }
+
+          .spain-sell-ad::before {
+            opacity: .16;
+            background-size: 82% auto;
+          }
+
+          .spain-sell-ad {
+            gap: 9px;
+            padding: 20px 18px;
+          }
+
+          .spain-sell-ad .spain-ad-label {
+            color: rgba(255,255,255,.88);
+            opacity: 1;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .16em;
+            text-shadow: 0 2px 8px rgba(0,0,0,.55);
+          }
+
+          .spain-sell-ad-title {
+            color: #fff;
+            font-size: 19px;
+            line-height: 1.15;
+            font-weight: 950;
+            text-shadow: 0 2px 10px rgba(0,0,0,.68);
+          }
+
+          .spain-sell-ad-copy {
+            max-width: 250px;
+            color: rgba(255,255,255,.96);
+            opacity: 1;
+            font-size: 12px;
+            line-height: 1.45;
+            font-weight: 700;
+            text-shadow: 0 2px 8px rgba(0,0,0,.72);
+          }
+
+          .spain-sell-ad-trust {
+            color: #fff;
+            font-size: 11px;
+            line-height: 1.2;
+            font-weight: 900;
+            text-shadow: 0 2px 8px rgba(0,0,0,.72);
+          }
+
+          .spain-sell-ad-button {
+            margin-top: 2px;
+            border: 1px solid rgba(255,255,255,.55);
+            border-radius: 999px;
+            padding: 9px 15px;
+            background: rgba(255,255,255,.18);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 6px 18px rgba(0,0,0,.18);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #fff;
+            font: inherit;
+            font-size: 10px;
+            font-weight: 950;
+            letter-spacing: .08em;
+            cursor: pointer;
+            text-shadow: 0 1px 5px rgba(0,0,0,.55);
+          }
+
+          .spain-sell-ad-button:hover {
+            background: rgba(255,255,255,.28);
+            transform: translateY(-1px);
+          }
+        }
+
+        @media (max-width: 760px) {
+          .spain-side-column {
+            display: none !important;
+          }
         }
 
         .spain-schedule-card::before {
@@ -6745,6 +7562,28 @@ export default function Home() {
             display: none !important;
           }
 
+          .page-shell.glass-shell.seller-modal-active {
+            display: block !important;
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 2147483000 !important;
+            width: 100% !important;
+            max-width: none !important;
+            height: 100dvh !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            background: transparent !important;
+          }
+
+          .page-shell.glass-shell.seller-modal-active > *:not(.market-modal-backdrop) {
+            display: none !important;
+          }
+
+          .page-shell.glass-shell.seller-modal-active > .market-modal-backdrop {
+            display: flex !important;
+          }
+
           .site {
             min-height: 100dvh !important;
             padding: 0 !important;
@@ -7598,53 +8437,261 @@ export default function Home() {
 
           .psv2-ticket-results {
             display: grid;
-            gap: 8px;
+            gap: 12px;
             margin-top: 10px;
             padding: 10px;
           }
 
           .psv2-ticket-result {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 9px;
-            padding: 11px;
-            border: 1px solid rgba(255,255,255,.28);
-            border-radius: 17px;
-            background: rgba(255,255,255,.045);
+            position: relative;
+            display: block;
+            padding: 0;
+            border: 0;
+            border-radius: 18px;
+            background: transparent;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: transform .18s ease, filter .18s ease;
           }
 
-          .psv2-ticket-result > div {
+          .psv2-ticket-result:hover {
+            transform: translateY(-2px);
+            filter: drop-shadow(0 10px 14px rgba(0,0,0,.16));
+          }
+
+          .psv2-real-ticket {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0,1fr) 82px;
+            min-height: 205px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,.82);
+            border-radius: 18px;
+            background: linear-gradient(145deg, rgba(255,255,255,.94), rgba(239,247,255,.84));
+            color: #071633;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.98), 0 8px 20px rgba(0,0,0,.15);
+            backdrop-filter: blur(14px) saturate(1.12);
+            -webkit-backdrop-filter: blur(14px) saturate(1.12);
+          }
+
+          .psv2-real-ticket::before,
+          .psv2-real-ticket::after {
+            content: "";
+            position: absolute;
+            z-index: 4;
+            right: 70px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(15,32,55,.92);
+            pointer-events: none;
+          }
+          .psv2-real-ticket::before { top: -11px; }
+          .psv2-real-ticket::after { bottom: -11px; }
+
+          .psv2-real-ticket-body {
+            min-width: 0;
+            padding: 14px 12px 12px;
+          }
+
+          .psv2-ticket-match {
+            display: grid;
+            grid-template-columns: minmax(0,1fr) 26px minmax(0,1fr);
+            align-items: center;
+            gap: 6px;
+          }
+
+          .psv2-ticket-team {
             min-width: 0;
             display: flex;
             flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            text-align: center;
           }
 
-          .psv2-ticket-result strong {
+          .psv2-ticket-team img,
+          .psv2-ticket-badge-fallback {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+          }
+
+          .psv2-ticket-team strong {
+            width: 100%;
             overflow: hidden;
-            color: #fff;
-            font-size: 11px;
+            color: #071633;
+            font-size: 10px;
+            line-height: 1.15;
+            font-weight: 850;
             text-overflow: ellipsis;
             white-space: nowrap;
           }
 
-          .psv2-ticket-result span,
-          .psv2-ticket-result small {
-            margin-top: 3px;
-            color: rgba(255,255,255,.70);
-            font-size: 9px;
+          .psv2-ticket-vs {
+            margin: 0 !important;
+            color: rgba(7,22,51,.48) !important;
+            font-size: 10px !important;
+            font-weight: 900;
+            text-align: center;
           }
 
-          .psv2-ticket-result button {
-            flex: 0 0 auto;
-            min-width: 61px;
-            height: 36px;
-            padding: 0 8px;
-            border: 1px solid rgba(255,255,255,.48);
-            border-radius: 13px;
-            background: rgba(255,255,255,.07);
+          .psv2-ticket-competition {
+            margin-top: 9px;
+            color: #1768ff;
+            font-size: 8px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-align: center;
+            text-transform: uppercase;
+          }
+
+          .psv2-ticket-date {
+            margin-top: 5px;
+            color: #071633;
+            font-size: 10px;
+            font-weight: 850;
+            text-align: center;
+          }
+
+          .psv2-ticket-stadium {
+            margin-top: 3px;
+            overflow: hidden;
+            color: rgba(7,22,51,.62);
+            font-size: 8px;
+            text-align: center;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .psv2-ticket-facts-grid {
+            display: grid;
+            grid-template-columns: repeat(3,minmax(0,1fr));
+            gap: 7px;
+            margin-top: 12px;
+            padding-top: 9px;
+            border-top: 1px solid rgba(7,22,51,.10);
+          }
+
+          .psv2-ticket-facts-grid div { min-width: 0; }
+          .psv2-ticket-facts-grid span {
+            display: block;
+            margin: 0;
+            color: rgba(7,22,51,.46);
+            font-size: 6.5px;
+            font-weight: 900;
+            letter-spacing: .06em;
+          }
+          .psv2-ticket-facts-grid b {
+            display: block;
+            margin-top: 2px;
+            overflow: hidden;
+            color: #071633;
+            font-size: 8.5px;
+            line-height: 1.15;
+            font-weight: 820;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .psv2-ticket-detail-hint {
+            display: inline-flex;
+            width: fit-content;
+            margin-top: 10px !important;
+            color: rgba(7,22,51,.62) !important;
+            font-size: 8px !important;
+            line-height: 1.2 !important;
+            font-weight: 800 !important;
+          }
+
+          .psv2-ticket-stub {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 13px 8px 12px;
+            border-left: 1px dashed rgba(7,22,51,.28);
+            background: linear-gradient(180deg, rgba(23,104,255,.08), rgba(25,190,142,.08));
+          }
+
+          .psv2-ticket-stub-brand {
+            margin: 0 !important;
+            color: #1768ff !important;
+            font-size: 8px !important;
+            font-weight: 950;
+            letter-spacing: .08em;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+          }
+
+          .psv2-ticket-barcode {
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            gap: 1px;
+            width: 46px;
+            height: 66px;
+            overflow: hidden;
+          }
+          .psv2-ticket-barcode i {
+            display: block;
+            width: 1px;
+            background: #071633;
+          }
+          .psv2-ticket-barcode i:nth-child(3n) { width: 2px; }
+          .psv2-ticket-barcode i:nth-child(4n) { opacity: .42; }
+
+          .psv2-ticket-stub strong {
+            color: #071633;
+            font-size: 13px;
+            font-weight: 950;
+            white-space: nowrap;
+          }
+
+          .psv2-ticket-result-expanded .psv2-real-ticket {
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.98), 0 10px 24px rgba(0,0,0,.20);
+          }
+
+          .psv2-ticket-expanded {
+            display: grid;
+            gap: 6px;
+            width: calc(100% - 10px);
+            margin: 7px auto 0;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,.24);
+            border-radius: 0 0 14px 14px;
+            background: rgba(5,15,28,.34);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+          }
+
+          .psv2-ticket-expanded div {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            color: rgba(255,255,255,.76);
+            font-size: 10px;
+            line-height: 1.2;
+          }
+          .psv2-ticket-expanded b {
             color: #fff;
-            font-weight: 800;
+            text-align: right;
+            font-weight: 780;
+          }
+
+          .psv2-ticket-buy-button {
+            width: 100%;
+            min-height: 42px;
+            margin-top: 4px;
+            border: 1px solid rgba(255,255,255,.62);
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(23,104,255,.88), rgba(25,190,142,.78));
+            color: #fff;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .03em;
           }
 
           .psv2-mobile-nav {
@@ -9027,6 +10074,56 @@ export default function Home() {
           font-size: 16px;
         }
 
+        .seller-offer-edit-button,
+        .seller-offer-delete-button {
+          min-height: 34px;
+          padding: 0 10px;
+          border-radius: 11px;
+          border: 1px solid rgba(255,255,255,.78);
+          font-weight: 760;
+          cursor: pointer;
+        }
+
+        .seller-offer-edit-button {
+          background: rgba(255,255,255,.48);
+          color: #071633;
+        }
+
+        .seller-offer-delete-button {
+          background: rgba(255,255,255,.34);
+          color: #a11d2c;
+          border-color: rgba(161,29,44,.18);
+        }
+
+        .seller-offer-delete-button:disabled {
+          opacity: .55;
+          cursor: wait;
+        }
+
+        .seller-edit-mode {
+          margin: 12px 0 2px;
+          padding: 10px 12px;
+          border: 1px solid rgba(255,255,255,.72);
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          background: rgba(255,255,255,.32);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.72);
+        }
+
+        .seller-edit-mode button {
+          min-height: 32px;
+          padding: 0 10px;
+          border: 1px solid rgba(255,255,255,.78);
+          border-radius: 10px;
+          background: rgba(255,255,255,.52);
+          color: #071633;
+          font-weight: 740;
+          cursor: pointer;
+        }
+
         @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
           .market-modal-backdrop {
             z-index: 20000 !important;
@@ -9147,6 +10244,23 @@ export default function Home() {
 
           .seller-price-actions {
             justify-content: flex-start;
+            flex-wrap: wrap;
+            gap: 7px;
+          }
+
+          .psv2-seller-own-ticket .seller-offer-edit-button,
+          .psv2-seller-own-ticket .seller-offer-delete-button,
+          .psv2-seller-own-ticket .seller-price-edit-button,
+          .psv2-seller-own-ticket .seller-price-save-button,
+          .psv2-seller-own-ticket .seller-price-cancel-button {
+            pointer-events: auto !important;
+            touch-action: manipulation !important;
+          }
+
+          .psv2-seller-own-ticket .seller-offer-edit-button,
+          .psv2-seller-own-ticket .seller-offer-delete-button {
+            min-height: 38px;
+            padding: 0 12px;
           }
         }
 
@@ -9354,9 +10468,15 @@ export default function Home() {
         }
 
         .account-delete-button {
+          width: auto;
+          min-height: 36px;
+          padding: 7px 12px;
           border: 1px solid rgba(210,35,50,.68);
+          border-radius: 11px;
           background: rgba(185,25,40,.88);
           color: #fff;
+          font-size: 12px;
+          font-weight: 750;
         }
 
         .account-delete-button:disabled {
@@ -9627,6 +10747,38 @@ export default function Home() {
           display: block;
         }
 
+        @media (min-width: 761px) {
+          .social-fairplay-stack {
+            height: 100%;
+          }
+
+          .social-fairplay-stack > .social-card,
+          .social-fairplay-stack > .fairplay-tile {
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,.76);
+            background:
+              linear-gradient(
+                145deg,
+                rgba(255,255,255,.28),
+                rgba(214,232,255,.12)
+              );
+            box-shadow:
+              inset 0 1px 0 rgba(255,255,255,.90),
+              0 14px 30px rgba(7,24,52,.12);
+          }
+
+          .social-fairplay-stack > .social-card {
+            flex: 1 1 0;
+          }
+
+          .social-fairplay-stack > .fairplay-tile {
+            flex: 1 1 0;
+            margin-top: 0;
+          }
+        }
+
         @media (max-width: 760px) {
           .seller-date-open-toggle {
             width: 100%;
@@ -9648,34 +10800,120 @@ export default function Home() {
           gap: 10px;
         }
 
-        .fairplay-seal-button {
+        .fairplay-tile {
+          position: relative;
+          align-self: stretch;
+          margin-top: 14px;
+          min-height: 132px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.76);
+          border-radius: 22px;
+          background:
+            linear-gradient(
+              145deg,
+              rgba(255,255,255,.28),
+              rgba(214,232,255,.12)
+            );
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.90),
+            0 14px 30px rgba(7,24,52,.12);
+          backdrop-filter: blur(16px) saturate(1.10);
+          -webkit-backdrop-filter: blur(16px) saturate(1.10);
+        }
+
+        .fairplay-tile-watermark {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          pointer-events: none;
+        }
+
+        .fairplay-watermark-card {
+          position: absolute;
+          top: 14px;
+          width: 62px;
+          height: 94px;
+          border-radius: 12px;
+          opacity: .20;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.32);
+        }
+
+        .fairplay-watermark-red {
+          right: 58px;
+          transform: rotate(-11deg);
+          background: linear-gradient(
+            160deg,
+            rgba(218,38,52,.98),
+            rgba(165,19,31,.82)
+          );
+        }
+
+        .fairplay-watermark-yellow {
+          right: 18px;
+          transform: rotate(9deg);
+          background: linear-gradient(
+            160deg,
+            rgba(255,218,54,.98),
+            rgba(224,174,14,.84)
+          );
+        }
+
+        .fairplay-tile-content {
+          position: relative;
+          z-index: 1;
+          min-height: 132px;
+          padding: 18px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+        }
+
+        .fairplay-tile-title {
+          font-size: 24px;
+          line-height: 1;
+          font-weight: 850;
+          letter-spacing: .045em;
+          background: linear-gradient(
+            90deg,
+            #2467fb 0%,
+            #2c9ed1 52%,
+            #25bd87 100%
+          );
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          text-shadow: 0 1px 0 rgba(255,255,255,.30);
+        }
+
+        .fairplay-football-button {
           appearance: none;
           -webkit-appearance: none;
-          align-self: center;
-          margin-top: 18px;
-          width: 118px;
-          height: 118px;
+          width: 58px;
+          height: 58px;
+          flex: 0 0 58px;
           padding: 0;
           border: 0;
-          border-radius: 50%;
-          display: block;
+          border-radius: 0;
+          display: grid;
+          place-items: center;
           cursor: pointer;
           background: transparent;
           box-shadow: none;
-          transition: transform .16s ease, filter .16s ease;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+          transition: transform .16s ease, opacity .16s ease;
         }
 
-        .fairplay-seal-button:hover {
-          transform: translateY(-2px) scale(1.025);
-          filter: drop-shadow(0 9px 18px rgba(7,24,52,.24));
+        .fairplay-football-button:hover {
+          transform: translateY(-2px) scale(1.04);
+          opacity: .88;
         }
 
-        .fairplay-seal-image {
-          width: 118px;
-          height: 118px;
-          object-fit: contain;
-          display: block;
-          border-radius: 50%;
+        .fairplay-football-button span {
+          font-size: 40px;
+          line-height: 1;
+          filter: grayscale(1) saturate(0) contrast(1.30);
         }
 
         @media (min-width: 761px) {
@@ -10135,169 +11373,150 @@ export default function Home() {
           }
 
           @media (min-width: 768px) and (max-width: 1180px) and (hover: none) and (pointer: coarse) {
-            .page-shell.glass-shell,
-            .mobile-bottom-nav,
+            /*
+              TABLET / iPAD
+              Kein erzwungenes Handy-Layout mehr.
+              Die normale responsive PaseSpain-Seite bleibt sichtbar und bedienbar.
+            */
+            .page-shell.glass-shell {
+              display: block !important;
+              width: min(1180px, calc(100% - 28px)) !important;
+              max-width: 1180px !important;
+              margin: 14px auto !important;
+            }
+
             .design-credit {
+              display: block !important;
+            }
+
+            .mobile-bottom-nav {
               display: none !important;
             }
 
             .site {
               min-height: 100dvh !important;
-              padding: 0 !important;
+              height: auto !important;
+              padding: 14px 0 28px !important;
               margin: 0 !important;
-              overflow: hidden !important;
-              background: #050b12 !important;
+              overflow-x: hidden !important;
+              overflow-y: auto !important;
+              background: initial !important;
             }
 
             .stadium-bg {
+              display: block !important;
+            }
+
+            /* Die separate Handy-App wird auf dem iPad bewusst nicht verwendet. */
+            .psv2-app {
               display: none !important;
             }
 
-            .psv2-app {
-              --safe-top-tablet: env(safe-area-inset-top, 0px);
-              --safe-bottom-tablet: env(safe-area-inset-bottom, 0px);
-              position: fixed !important;
-              inset: 0 !important;
-              z-index: 9999 !important;
-              display: block !important;
-              width: 100% !important;
-              height: 100dvh !important;
-              overflow: hidden !important;
-              background: #050b12 !important;
-            }
-
-            .psv2-mobile-stage {
-              position: absolute !important;
-              inset: 0 !important;
-              width: 100% !important;
-              height: 100% !important;
-              background:
-                #050b12
-                url("/pasespain-mobile-bg.png")
-                center center / cover
-                no-repeat !important;
-              pointer-events: none !important;
-            }
-
-            .psv2-mobile-language {
-              position: absolute !important;
-              top: calc(18px + var(--safe-top-tablet)) !important;
-              right: 24px !important;
-              z-index: 10005 !important;
-              display: grid !important;
-              grid-template-columns: repeat(4, 38px) !important;
-              gap: 8px !important;
-              padding: 7px 10px !important;
-              border: 1px solid rgba(255,255,255,.5) !important;
-              border-radius: 22px !important;
-              background: rgba(18,29,44,.30) !important;
-              backdrop-filter: blur(14px) !important;
-              -webkit-backdrop-filter: blur(14px) !important;
-            }
-
-            .psv2-mobile-language button {
-              display: grid !important;
-              place-items: center !important;
-              width: 38px !important;
-              height: 30px !important;
-              border: 0 !important;
-              background: transparent !important;
-            }
-
-            .psv2-mobile-logo {
-              position: absolute !important;
-              top: calc(62px + var(--safe-top-tablet)) !important;
-              left: 50% !important;
-              transform: translateX(-50%) !important;
-              width: clamp(250px, 31vw, 330px) !important;
-              max-height: 190px !important;
-              z-index: 10001 !important;
-            }
-
-            .psv2-mobile-subtitle {
-              position: absolute !important;
-              top: calc(270px + var(--safe-top-tablet)) !important;
-              left: 50% !important;
-              transform: translateX(-50%) !important;
-              width: min(560px, calc(100% - 80px)) !important;
-              padding: 9px 18px !important;
-              border: 1px solid rgba(255,255,255,.28) !important;
-              border-radius: 18px !important;
-              background: rgba(4,12,22,.34) !important;
-              color: #fff !important;
-              -webkit-text-fill-color: #fff !important;
-              background-clip: border-box !important;
-              -webkit-background-clip: border-box !important;
-              text-align: center !important;
-              font-size: 18px !important;
-              font-weight: 760 !important;
-              text-shadow: 0 2px 8px rgba(0,0,0,.7) !important;
-              backdrop-filter: blur(9px) !important;
-              -webkit-backdrop-filter: blur(9px) !important;
-              z-index: 10002 !important;
-            }
-
-            .psv2-ticket-page,
-            .psv2-seller-page,
-            .psv2-more-page {
-              position: absolute !important;
-              top: calc(328px + var(--safe-top-tablet)) !important;
-              left: max(28px, calc((100% - 760px) / 2)) !important;
-              right: max(28px, calc((100% - 760px) / 2)) !important;
-              bottom: calc(118px + var(--safe-bottom-tablet)) !important;
+            /* Dialoge und Verkäuferfunktionen bleiben auf Touch-Geräten bedienbar. */
+            .market-modal-backdrop {
+              z-index: 2147483000 !important;
+              align-items: flex-start !important;
+              padding:
+                calc(18px + env(safe-area-inset-top, 0px))
+                18px
+                calc(18px + env(safe-area-inset-bottom, 0px)) !important;
               overflow-y: auto !important;
-              overflow-x: hidden !important;
-              -webkit-overflow-scrolling: touch !important;
-              z-index: 10001 !important;
+              pointer-events: auto !important;
             }
 
-            .psv2-ticket-glass,
-            .psv2-seller-glass,
-            .psv2-more-glass {
-              width: 100% !important;
-              max-width: none !important;
-              box-sizing: border-box !important;
+            .market-modal,
+            .market-modal-wide {
+              width: min(760px, 100%) !important;
+              max-width: 760px !important;
+              max-height: none !important;
+              margin: 0 auto !important;
+              pointer-events: auto !important;
             }
 
-            .psv2-ticket-search {
-              display: grid !important;
-              grid-template-columns: minmax(0, 1fr) 54px !important;
-              gap: 10px !important;
+            .market-modal button,
+            .market-modal input,
+            .market-modal textarea,
+            .market-modal select,
+            .market-modal form {
+              pointer-events: auto !important;
+              touch-action: manipulation !important;
             }
 
-            .psv2-ticket-search input {
-              width: 100% !important;
-              height: 54px !important;
-              min-width: 0 !important;
-            }
-
-            .psv2-ticket-search-button {
-              display: grid !important;
-              width: 54px !important;
-              height: 54px !important;
-            }
-
-            .psv2-mobile-nav {
-              position: absolute !important;
-              left: 50% !important;
-              right: auto !important;
-              transform: translateX(-50%) !important;
-              bottom: max(12px, var(--safe-bottom-tablet)) !important;
-              width: min(720px, calc(100% - 48px)) !important;
-              height: 92px !important;
-              display: grid !important;
-              grid-template-columns: repeat(4, minmax(0,1fr)) !important;
-              gap: 10px !important;
-              z-index: 10005 !important;
-            }
-
-            .psv2-mobile-nav button {
-              width: 100% !important;
-              height: 92px !important;
-              border-radius: 24px !important;
+            .seller-price-actions {
+              flex-wrap: wrap !important;
             }
           }
-        `}</style>
+  
+
+        /* PaseSpain: sichtbare Desktop-Angebote als echte Tickets */
+        .pases-ticket-card {
+          padding: 0 !important;
+          border: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          overflow: visible !important;
+          cursor: pointer;
+        }
+        .pases-ticket-paper {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 64px;
+          min-height: 218px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.78);
+          border-radius: 18px;
+          background: rgba(255,255,255,.93);
+          box-shadow: 0 14px 34px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,1);
+          color: #071633;
+          transition: transform .18s ease, box-shadow .18s ease;
+        }
+        .pases-ticket-card:hover .pases-ticket-paper,
+        .pases-ticket-card:focus-visible .pases-ticket-paper {
+          transform: translateY(-4px);
+          box-shadow: 0 18px 40px rgba(0,0,0,.28), inset 0 1px 0 #fff;
+        }
+        .pases-ticket-main { padding: 17px 15px 14px; min-width: 0; }
+        .pases-ticket-clubs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+        .pases-ticket-club { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
+        .pases-ticket-club img { width: 50px; height: 50px; object-fit: contain; }
+        .pases-ticket-club strong { font-size: 14px; line-height: 1.15; font-weight: 900; }
+        .pases-ticket-vs { font-size: 11px; font-weight: 950; color: rgba(7,22,51,.42); }
+        .pases-ticket-meta { display: grid; gap: 3px; margin-top: 12px; text-align: center; }
+        .pases-ticket-meta b { color: #1768ff; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
+        .pases-ticket-meta span { font-size: 12px; line-height: 1.25; font-weight: 720; }
+        .pases-ticket-facts { display: grid; grid-template-columns: 1.5fr 1fr .75fr; gap: 6px; margin-top: 12px; }
+        .pases-ticket-facts div { min-width: 0; padding-top: 7px; border-top: 1px solid rgba(7,22,51,.12); }
+        .pases-ticket-facts small { display: block; color: rgba(7,22,51,.52); font-size: 8px; font-weight: 900; letter-spacing: .04em; }
+        .pases-ticket-facts b { display: block; margin-top: 3px; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+        .pases-ticket-hint { display: block; margin-top: 10px; color: rgba(7,22,51,.52); font-size: 9px; font-weight: 750; }
+        .pases-ticket-stub-new { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 8px; border-left: 1px dashed rgba(7,22,51,.28); background: linear-gradient(180deg, rgba(23,104,255,.09), rgba(25,190,142,.10)); }
+        .pases-ticket-stub-new > span { color: #1768ff; font-size: 8px; font-weight: 950; letter-spacing: .08em; writing-mode: vertical-rl; transform: rotate(180deg); }
+        .pases-ticket-stub-new strong { font-size: 13px; font-weight: 950; white-space: nowrap; }
+        .pases-ticket-stub-new small { font-size: 7px; font-weight: 850; line-height: 1; white-space: nowrap; opacity: .72; }
+        .pases-ticket-barcode-new {
+          width: 38px;
+          height: 58px;
+          background: linear-gradient(90deg,
+            #071633 0 2px, transparent 2px 4px,
+            #071633 4px 5px, transparent 5px 7px,
+            #071633 7px 10px, transparent 10px 11px,
+            #071633 11px 13px, transparent 13px 16px,
+            #071633 16px 17px, transparent 17px 19px,
+            #071633 19px 23px, transparent 23px 25px,
+            #071633 25px 27px, transparent 27px 30px,
+            #071633 30px 31px, transparent 31px 33px,
+            #071633 33px 37px, transparent 37px 38px);
+          opacity: .92;
+        }
+        .pases-ticket-details { display: grid; gap: 10px; margin: 7px 7px 0; padding: 11px; border: 1px solid rgba(255,255,255,.32); border-radius: 0 0 14px 14px; background: rgba(5,15,28,.48); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); color: #fff; }
+        .pases-ticket-description { white-space: pre-line; font-size: 12px; line-height: 1.5; }
+        .pases-ticket-buy { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border: 1px solid rgba(255,255,255,.64); border-radius: 12px; background: linear-gradient(135deg, rgba(23,104,255,.92), rgba(25,190,142,.84)); color: #fff; font-weight: 900; cursor: pointer; }
+        .pases-ticket-buy svg { width: 17px; height: 17px; }
+        @media (max-width: 760px) {
+          .pases-ticket-paper { grid-template-columns: minmax(0, 1fr) 58px; min-height: 200px; }
+          .pases-ticket-main { padding: 14px 12px 12px; }
+          .pases-ticket-club img { width: 40px; height: 40px; }
+        }
+      `}</style>
 
         <img
           className="psv2-mobile-logo"
@@ -10505,21 +11724,158 @@ export default function Home() {
 
             {visibleOffers.length > 0 ? (
               <div className="psv2-ticket-results">
-                {visibleOffers.map((offer, index) => (
-                  <article
-                    className="psv2-ticket-result"
-                    key={`${offer.home}-${offer.away}-${offer.date}-${index}`}
-                  >
-                    <div>
-                      <strong>{offer.home} – {offer.away}</strong>
-                      <span>{offer.date}</span>
-                      <small>{offer.stadium}</small>
-                    </div>
-                    <button type="button" onClick={() => addToCart(offer)}>
-                      {offer.price}
-                    </button>
-                  </article>
-                ))}
+                {visibleOffers.map((offer, index) => {
+                  const offerKey =
+                    offer.id || `${offer.home}-${offer.away}-${offer.date}-${index}`;
+
+                  const homeBadge = teamBadges[offer.home];
+                  const awayBadge = teamBadges[offer.away];
+
+                  const ticketCount =
+                    sellerDetailValue(offer.details || "", "Anzahl Tickets") ||
+                    (offer.ticketCount ? String(offer.ticketCount) : "");
+
+                  const numericTicketCount = Math.max(1, Number(ticketCount) || offer.ticketCount || 1);
+                  const numericUnitPrice =
+                    offer.unitPrice ||
+                    Number(offer.price.replace(/[^0-9.,]/g, "").replace(",", ".")) ||
+                    0;
+                  const unitPriceLabel = `${numericUnitPrice.toFixed(2)}€`;
+
+                  const combinedZone =
+                    sellerDetailValue(offer.details || "", "Zone / Tribüne");
+                  const tribune =
+                    sellerDetailValue(offer.details || "", "Tribüne") ||
+                    sellerDetailValue(offer.details || "", "Tribuna") ||
+                    combinedZone;
+                  const zone =
+                    sellerDetailValue(offer.details || "", "Zone") ||
+                    sellerDetailValue(offer.details || "", "Zona") ||
+                    combinedZone;
+                  const sector =
+                    sellerDetailValue(offer.details || "", "Sektor") ||
+                    sellerDetailValue(offer.details || "", "Sector");
+                  const row =
+                    sellerDetailValue(offer.details || "", "Reihe") ||
+                    sellerDetailValue(offer.details || "", "Fila");
+                  const seat =
+                    sellerDetailValue(offer.details || "", "Platz") ||
+                    sellerDetailValue(offer.details || "", "Sitzplatz") ||
+                    sellerDetailValue(offer.details || "", "Asiento") ||
+                    sellerDetailValue(offer.details || "", "Seient");
+
+                  const childTickets =
+                    sellerDetailValue(offer.details || "", "Kindertickets") ||
+                    (offer.childTickets ? String(offer.childTickets) : "");
+                  const childDescription = sellerDetailValue(
+                    offer.details || "",
+                    "Kindertickets Beschreibung"
+                  );
+                  const competition =
+                    sellerDetailValue(offer.details || "", "Wettbewerb");
+                  const dateStatus =
+                    sellerDetailValue(offer.details || "", "Termin");
+                  const dateOpen =
+                    dateStatus.toLowerCase().includes("noch nicht bestätigt") ||
+                    offer.date.startsWith("2099-12-31");
+                  const isExpanded = mobileExpandedOfferId === offerKey;
+
+                  const labels =
+                    language === "de"
+                      ? { tribune: "TRIBÜNE", zone: "ZONE", sector: "SEKTOR", row: "REIHE", seat: "SITZPLATZ", quantity: "ANZAHL", details: "Mehr Infos", less: "Weniger", buy: "KAUFEN", competition: "Wettbewerb", city: "Ort", children: "Kindertickets", dateOpen: "Termin noch nicht bestätigt" }
+                      : language === "en"
+                        ? { tribune: "STAND", zone: "ZONE", sector: "SECTOR", row: "ROW", seat: "SEAT", quantity: "QUANTITY", details: "More info", less: "Show less", buy: "BUY", competition: "Competition", city: "City", children: "Child tickets", dateOpen: "Date not confirmed yet" }
+                        : language === "ca"
+                          ? { tribune: "TRIBUNA", zone: "ZONA", sector: "SECTOR", row: "FILA", seat: "SEIENT", quantity: "QUANTITAT", details: "Més informació", less: "Mostra menys", buy: "COMPRAR", competition: "Competició", city: "Ciutat", children: "Entrades infantils", dateOpen: "Data encara no confirmada" }
+                          : { tribune: "TRIBUNA", zone: "ZONA", sector: "SECTOR", row: "FILA", seat: "ASIENTO", quantity: "CANTIDAD", details: "Más información", less: "Mostrar menos", buy: "COMPRAR", competition: "Competición", city: "Ciudad", children: "Entradas infantiles", dateOpen: "Fecha aún no confirmada" };
+
+                  return (
+                    <article
+                      className={`psv2-ticket-result${isExpanded ? " psv2-ticket-result-expanded" : ""}`}
+                      key={offerKey}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isExpanded}
+                      onClick={() =>
+                        setMobileExpandedOfferId(isExpanded ? null : offerKey)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setMobileExpandedOfferId(isExpanded ? null : offerKey);
+                        }
+                      }}
+                    >
+                      <div className="psv2-real-ticket">
+                        <div className="psv2-real-ticket-body">
+                          <div className="psv2-ticket-match">
+                            <div className="psv2-ticket-team">
+                              {homeBadge ? <img src={homeBadge} alt="" aria-hidden="true" /> : <span className="psv2-ticket-badge-fallback">⚽</span>}
+                              <strong>{offer.home}</strong>
+                            </div>
+                            <span className="psv2-ticket-vs">VS</span>
+                            <div className="psv2-ticket-team">
+                              {awayBadge ? <img src={awayBadge} alt="" aria-hidden="true" /> : <span className="psv2-ticket-badge-fallback">⚽</span>}
+                              <strong>{offer.away}</strong>
+                            </div>
+                          </div>
+
+                          {competition && <div className="psv2-ticket-competition">{competition}</div>}
+                          <div className="psv2-ticket-date">{dateOpen ? labels.dateOpen : offer.date}</div>
+                          <div className="psv2-ticket-stadium">{offer.stadium}{offer.city ? ` · ${offer.city}` : ""}</div>
+
+                          <div className="psv2-ticket-facts-grid">
+                            {tribune && <div><span>{labels.tribune}</span><b>{tribune}</b></div>}
+                            {zone && zone !== tribune && <div><span>{labels.zone}</span><b>{zone}</b></div>}
+                            {sector && <div><span>{labels.sector}</span><b>{sector}</b></div>}
+                            {row && <div><span>{labels.row}</span><b>{row}</b></div>}
+                            {seat && <div><span>{labels.seat}</span><b>{seat}</b></div>}
+                            {ticketCount && <div><span>{labels.quantity}</span><b>{ticketCount}</b></div>}
+                          </div>
+
+                          <span className="psv2-ticket-detail-hint">
+                            {isExpanded ? `${labels.less} ▲` : `${labels.details} ▼`}
+                          </span>
+                        </div>
+
+                        <div className="psv2-ticket-stub" aria-hidden="true">
+                          <span className="psv2-ticket-stub-brand">PASESPAIN</span>
+                          <div className="psv2-ticket-barcode">
+                            {Array.from({ length: 24 }, (_, barIndex) => <i key={barIndex} />)}
+                          </div>
+                          <strong>{unitPriceLabel}</strong>
+                          <small>pro Ticket</small>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="psv2-ticket-expanded" onClick={(event) => event.stopPropagation()}>
+                          {competition && <div><span>{labels.competition}</span><b>{competition}</b></div>}
+                          {tribune && <div><span>{labels.tribune}</span><b>{tribune}</b></div>}
+                          {zone && zone !== tribune && <div><span>{labels.zone}</span><b>{zone}</b></div>}
+                          {sector && <div><span>{labels.sector}</span><b>{sector}</b></div>}
+                          {row && <div><span>{labels.row}</span><b>{row}</b></div>}
+                          {seat && <div><span>{labels.seat}</span><b>{seat}</b></div>}
+                          {ticketCount && <div><span>{labels.quantity}</span><b>{ticketCount}</b></div>}
+                          {childTickets && Number(childTickets) > 0 && <div><span>{labels.children}</span><b>{childTickets}{childDescription ? ` · ${childDescription}` : ""}</b></div>}
+                          {offer.city && <div><span>{labels.city}</span><b>{offer.city}</b></div>}
+                          <button
+                            className="psv2-ticket-buy-button"
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              addToCart(offer);
+                              setCartOpen(true);
+                            }}
+                          >
+                            {labels.buy} · {unitPriceLabel}
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <div className="psv2-ticket-results psv2-ticket-empty">
@@ -10596,6 +11952,27 @@ export default function Home() {
                           <strong>{offer.home} – {offer.away}</strong>
                           <small>{offer.date} · {offer.stadium}</small>
 
+                          <div className="psv2-seller-ticket-facts">
+                            {sellerDetailValue(offer.details || "", "Anzahl Tickets") && (
+                              <span>
+                                {sellerDetailValue(offer.details || "", "Anzahl Tickets")} Tickets
+                              </span>
+                            )}
+                            {sellerDetailValue(offer.details || "", "Zone / Tribüne") && (
+                              <span>
+                                {sellerDetailValue(offer.details || "", "Zone / Tribüne")}
+                              </span>
+                            )}
+                            {(sellerDetailValue(offer.details || "", "Reihe") ||
+                              sellerDetailValue(offer.details || "", "Sektor")) && (
+                              <span>
+                                {language === "de" ? "Reihe" : language === "en" ? "Row" : "Fila"}{" "}
+                                {sellerDetailValue(offer.details || "", "Reihe") ||
+                                  sellerDetailValue(offer.details || "", "Sektor")}
+                              </span>
+                            )}
+                          </div>
+
                           <div className="seller-price-actions">
                             {sellerPriceEditId === offer.id ? (
                               <>
@@ -10604,18 +11981,14 @@ export default function Home() {
                                   inputMode="decimal"
                                   value={sellerPriceEditValue}
                                   onChange={event =>
-                                    setSellerPriceEditValue(
-                                      event.target.value
-                                    )
+                                    setSellerPriceEditValue(event.target.value)
                                   }
                                 />
                                 <button
                                   className="seller-price-save-button"
                                   type="button"
                                   disabled={sellerPriceUpdating}
-                                  onClick={() =>
-                                    handleSellerPriceUpdate(offer)
-                                  }
+                                  onClick={() => handleSellerPriceUpdate(offer)}
                                 >
                                   {language === "de"
                                     ? "Speichern"
@@ -10647,9 +12020,7 @@ export default function Home() {
                                   type="button"
                                   onClick={() => {
                                     setSellerPriceEditId(offer.id || null);
-                                    setSellerPriceEditValue(
-                                      offer.price.replace("€", "")
-                                    );
+                                    setSellerPriceEditValue(offer.price.replace("€", ""));
                                     setSellerPriceEditError("");
                                   }}
                                 >
@@ -10663,6 +12034,37 @@ export default function Home() {
                                 </button>
                               </>
                             )}
+
+                            <button
+                              className="seller-offer-edit-button"
+                              type="button"
+                              onClick={() => startSellerOfferEdit(offer)}
+                            >
+                              {language === "de"
+                                ? "Bearbeiten"
+                                : language === "en"
+                                  ? "Edit"
+                                  : "Editar"}
+                            </button>
+
+                            <button
+                              className="seller-offer-delete-button"
+                              type="button"
+                              disabled={sellerOfferDeletingId === offer.id}
+                              onClick={() => handleSellerOfferDelete(offer)}
+                            >
+                              {sellerOfferDeletingId === offer.id
+                                ? language === "de"
+                                  ? "Löschen …"
+                                  : language === "en"
+                                    ? "Deleting …"
+                                    : "Eliminando …"
+                                : language === "de"
+                                  ? "Löschen"
+                                  : language === "en"
+                                    ? "Delete"
+                                    : "Eliminar"}
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -10995,7 +12397,7 @@ export default function Home() {
         </nav>
       </section>
 
-      <div className="page-shell glass-shell">
+      <div className={`page-shell glass-shell${sellerModalOpen ? " seller-modal-active" : ""}`}>
         <header className="header" id="mobile-start">
           <div className="brand-area">
             <div className="brand-text">
@@ -11637,19 +13039,26 @@ export default function Home() {
             </div>
           </article>
 
-          <button
-            type="button"
-            className="fairplay-seal-button"
-            onClick={() => setFairplayOpen(true)}
-            aria-label="PaseSpain Fairplay"
-            title="PaseSpain Fairplay"
-          >
-            <img
-              src="/publicfairplay.png"
-              alt="PaseSpain Fairplay"
-              className="fairplay-seal-image"
-            />
-          </button>
+          <div className="fairplay-tile" aria-label="PaseSpain Fairplay">
+            <div className="fairplay-tile-watermark" aria-hidden="true">
+              <span className="fairplay-watermark-card fairplay-watermark-red" />
+              <span className="fairplay-watermark-card fairplay-watermark-yellow" />
+            </div>
+
+            <div className="fairplay-tile-content">
+              <span className="fairplay-tile-title">FAIRPLAY</span>
+
+              <button
+                type="button"
+                className="fairplay-football-button"
+                onClick={() => setFairplayOpen(true)}
+                aria-label="PaseSpain Fairplay öffnen"
+                title="PaseSpain Fairplay"
+              >
+                <span aria-hidden="true">⚽</span>
+              </button>
+            </div>
+          </div>
           </div>
         </section>
 
@@ -11742,145 +13151,86 @@ export default function Home() {
 
                     return (
                       <article
-                        className="match-card neutral-glass ticket-watermark-card"
+                        className={`match-card pases-ticket-card${mobileExpandedOfferId === (offer.id || `${offer.home}-${offer.away}-${offer.date}-${index}`) ? " pases-ticket-card-open" : ""}`}
                         key={`${offer.home}-${offer.away}-${index}`}
                         data-ticket-city={offer.city}
                         tabIndex={0}
-                        onMouseEnter={() =>
-                          setSelectedCity(
-                            offer.city
-                          )
-                        }
-                        onFocus={() =>
-                          setSelectedCity(
-                            offer.city
-                          )
-                        }
-                        onClick={() =>
-                          setSelectedCity(
-                            offer.city
-                          )
-                        }
+                        role="button"
+                        aria-expanded={mobileExpandedOfferId === (offer.id || `${offer.home}-${offer.away}-${offer.date}-${index}`)}
+                        onMouseEnter={() => setSelectedCity(offer.city)}
+                        onFocus={() => setSelectedCity(offer.city)}
+                        onClick={() => {
+                          setSelectedCity(offer.city);
+                          const ticketKey = offer.id || `${offer.home}-${offer.away}-${offer.date}-${index}`;
+                          setMobileExpandedOfferId(mobileExpandedOfferId === ticketKey ? null : ticketKey);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            const ticketKey = offer.id || `${offer.home}-${offer.away}-${offer.date}-${index}`;
+                            setMobileExpandedOfferId(mobileExpandedOfferId === ticketKey ? null : ticketKey);
+                          }
+                        }}
                       >
-                        {
-                          homeBadge && (
-                            <img
-                              src={
-                                homeBadge
-                              }
-                              alt=""
-                              aria-hidden="true"
-                              className="team-watermark team-watermark-left"
-                            />
-                          )
-                        }
-
-                        {
-                          awayBadge && (
-                            <img
-                              src={
-                                awayBadge
-                              }
-                              alt=""
-                              aria-hidden="true"
-                              className="team-watermark team-watermark-right"
-                            />
-                          )
-                        }
-
-                        <div className="ticket-card-content">
-                          <div className="teams">
-                            <div>
-                              <strong>
-                                {
-                                  offer.home
-                                }
-                              </strong>
+                        <div className="pases-ticket-paper">
+                          <div className="pases-ticket-main">
+                            <div className="pases-ticket-clubs">
+                              <div className="pases-ticket-club">
+                                {homeBadge && <img src={homeBadge} alt="" aria-hidden="true" />}
+                                <strong>{offer.home}</strong>
+                              </div>
+                              <span className="pases-ticket-vs">VS</span>
+                              <div className="pases-ticket-club">
+                                {awayBadge && <img src={awayBadge} alt="" aria-hidden="true" />}
+                                <strong>{offer.away}</strong>
+                              </div>
                             </div>
 
-                            <span className="versus">
-                              VS
+                            <div className="pases-ticket-meta">
+                              {sellerDetailValue(offer.details, "Wettbewerb") && (
+                                <b>{sellerDetailValue(offer.details, "Wettbewerb")}</b>
+                              )}
+                              <span>{offer.date}</span>
+                              <span>{offer.stadium}</span>
+                            </div>
+
+                            <div className="pases-ticket-facts">
+                              <div><small>{language === "de" ? "TRIBÜNE / ZONE" : language === "en" ? "STAND / ZONE" : language === "ca" ? "TRIBUNA / ZONA" : "TRIBUNA / ZONA"}</small><b>{sellerDetailValue(offer.details, "Zone / Tribüne") || "—"}</b></div>
+                              <div><small>{language === "de" ? "REIHE" : language === "en" ? "ROW" : "FILA"}</small><b>{sellerDetailValue(offer.details, "Reihe") || sellerDetailValue(offer.details, "Sektor") || "—"}</b></div>
+                              <div><small>{language === "de" ? "TICKETS" : language === "ca" ? "ENTRADES" : language === "es" ? "ENTRADAS" : "TICKETS"}</small><b>{sellerDetailValue(offer.details, "Anzahl Tickets") || offer.ticketCount || "—"}</b></div>
+                            </div>
+
+                            <span className="pases-ticket-hint">
+                              {language === "de" ? "Ticket anklicken für Details" : language === "en" ? "Click ticket for details" : language === "ca" ? "Clica l’entrada per veure els detalls" : "Haz clic en la entrada para ver detalles"}
                             </span>
-
-                            <div>
-                              <strong>
-                                {
-                                  offer.away
-                                }
-                              </strong>
-                            </div>
                           </div>
 
-                          <div className="match-info">
-                            <span>
-                              {
-                                offer.date
-                              }
-                            </span>
-
-                            <span>
-                              {
-                                offer.stadium
-                              }
-                            </span>
-
-                            {
-                              offer.details && (
-                                <span>
-                                  {
-                                    offer.details
-                                  }
-                                </span>
-                              )
-                            }
-                          </div>
-
-                          <div className="match-bottom">
-                            <div>
-                              <span className="from">
-                                {
-                                  t.from
-                                }
-                              </span>
-
-                              <strong>
-                                {
-                                  offer.price
-                                }
-                              </strong>
-                            </div>
-
-                            <button
-                              className="round-button neutral-glass cart-add-button"
-                              type="button"
-                              aria-label={
-                                language === "de"
-                                  ? "In den Warenkorb"
-                                  : language === "en"
-                                    ? "Add to cart"
-                                    : language === "ca"
-                                      ? "Afegir al carret"
-                                      : "Añadir al carrito"
-                              }
-                              title={
-                                language === "de"
-                                  ? "In den Warenkorb"
-                                  : language === "en"
-                                    ? "Add to cart"
-                                    : language === "ca"
-                                      ? "Afegir al carret"
-                                      : "Añadir al carrito"
-                              }
-                              onClick={() =>
-                                addToCart(
-                                  offer
-                                )
-                              }
-                            >
-                              <CartIcon />
-                            </button>
+                          <div className="pases-ticket-stub-new">
+                            <span>PASESPAIN</span>
+                            <div className="pases-ticket-barcode-new" aria-hidden="true" />
+                            <strong>{offer.price}</strong>
+                            <small>pro Ticket</small>
                           </div>
                         </div>
+
+                        {mobileExpandedOfferId === (offer.id || `${offer.home}-${offer.away}-${offer.date}-${index}`) && (
+                          <div className="pases-ticket-details" onClick={(event) => event.stopPropagation()}>
+                            {offer.details && <div className="pases-ticket-description">{translatedOfferDetails(offer.details)}</div>}
+                            <button
+                              className="pases-ticket-buy"
+                              type="button"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                addToCart(offer);
+                                setCartOpen(true);
+                              }}
+                            >
+                              <CartIcon />
+                              <span>{language === "de" ? "In den Warenkorb" : language === "en" ? "Add to cart" : language === "ca" ? "Afegir al carret" : "Añadir al carrito"}</span>
+                            </button>
+                          </div>
+                        )}
                       </article>
                     );
                   }
@@ -11889,91 +13239,126 @@ export default function Home() {
             </div>
           </div>
 
-          <aside className="weather-panel neutral-glass spain-schedule-card">
-            <div className="spain-schedule-head">
-              <strong>
-                {language === "de"
-                  ? "NÄCHSTE SPIELE IN SPANIEN"
-                  : language === "en"
-                    ? "NEXT MATCHES IN SPAIN"
-                    : language === "ca"
-                      ? "PRÒXIMS PARTITS A ESPANYA"
-                      : "PRÓXIMOS PARTIDOS EN ESPAÑA"}
-              </strong>
+          <div className="spain-side-column">
+            <aside className="weather-panel neutral-glass pases-scoreboard">
+              <div className="pases-scoreboard-top">
+                <span className="pases-live-dot" />
+                <strong><span className="pases-brand-gradient">PASESPAIN</span> <span className="pases-live-word">LIVE</span></strong>
+              </div>
 
-              <a
-                className="spain-schedule-league-link"
-                href="https://www.laliga.com/laliga-easports/calendario"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                LaLiga
-              </a>
-            </div>
-
-            <div className="spain-schedule-online">
-              {language === "de"
-                ? "Spielplan aktuell online"
-                : language === "en"
-                  ? "Fixture list live online"
-                  : language === "ca"
-                    ? "Calendari actualitzat en línia"
-                    : "Calendario actualizado online"}
-            </div>
-
-            <div className="spain-schedule-list">
-              {laLigaLoading ? (
-                <div className="spain-schedule-status">
-                  {language === "de"
-                    ? "Aktuelle Spiele werden geladen …"
-                    : language === "en"
-                      ? "Loading current fixtures …"
-                      : language === "ca"
-                        ? "Carregant els pròxims partits …"
-                        : "Cargando próximos partidos …"}
-                </div>
-              ) : laLigaMatches.length > 0 ? (
-                laLigaMatches.map((event, index) => (
-                  <div
-                    className="spain-schedule-match"
-                    key={event.idEvent ?? `${event.strHomeTeam}-${event.strAwayTeam}-${index}`}
-                  >
-                    <div className="spain-schedule-teams">
-                      {event.strHomeTeam} <span>vs</span> {event.strAwayTeam}
-                    </div>
-                    <div className="spain-schedule-meta">
-                      {formatLaLigaDate(event)}
-                    </div>
+              {liveBoardOffer ? (
+                <div key={`${liveBoardOffer.home}-${liveBoardOffer.away}-${liveBoardIndex}`} className="pases-flap-changing">
+                  <div className="pases-scoreboard-kicker">
+                    {language === "de"
+                      ? "TICKETS VERFÜGBAR"
+                      : language === "en"
+                        ? "TICKETS AVAILABLE"
+                        : language === "ca"
+                          ? "ENTRADES DISPONIBLES"
+                          : "ENTRADAS DISPONIBLES"}
                   </div>
-                ))
-              ) : (
-                <div className="spain-schedule-status">
-                  {language === "de"
-                    ? "Zurzeit keine kommenden LaLiga-Spiele gefunden."
-                    : language === "en"
-                      ? "No upcoming LaLiga fixtures found right now."
-                      : language === "ca"
-                        ? "Ara mateix no s'han trobat pròxims partits de LaLiga."
-                        : "Ahora mismo no se han encontrado próximos partidos de LaLiga."}
+                  <div className="pases-char-line">
+                    {renderFlapChars(liveBoardOffer.home)}
+                  </div>
+                  <div className="pases-board-vs">VS</div>
+                  <div className="pases-char-line">
+                    {renderFlapChars(liveBoardOffer.away)}
+                  </div>
+                  <div className="pases-char-line pases-price-line">
+                    {renderFlapChars(
+                      `${language === "de"
+                        ? "AB"
+                        : language === "en"
+                          ? "FROM"
+                          : language === "ca"
+                            ? "DES DE"
+                            : "DESDE"} ${liveBoardOffer.price}`,
+                      16
+                    )}
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div className="pases-scoreboard-kicker">PASESPAIN</div>
+                  <div className="pases-scoreboard-message">
+                    COMPRA · VENDE · DISFRUTA
+                  </div>
+                  <div className="pases-scoreboard-price">PASESPAIN.ES</div>
+                </>
               )}
-            </div>
+            </aside>
 
-            <a
-              className="spain-schedule-link"
-              href="https://www.laliga.com/laliga-easports/calendario"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {language === "de"
-                ? "Kompletten Spielplan öffnen →"
-                : language === "en"
-                  ? "Open full fixture list →"
-                  : language === "ca"
-                    ? "Obrir calendari complet →"
-                    : "Abrir calendario completo →"}
-            </a>
-          </aside>
+            <aside className="weather-panel neutral-glass spain-ad-card spain-ad-card-large spain-sell-ad">
+              <div className="spain-ad-label">
+                {language === "de"
+                  ? "DU HAST TICKETS"
+                  : language === "en"
+                    ? "HAVE TICKETS"
+                    : language === "ca"
+                      ? "TENS ENTRADES"
+                      : "TIENES ENTRADAS"}
+              </div>
+
+              <div className="spain-ad-title spain-sell-ad-title">
+                {language === "de"
+                  ? "Verkaufe sie auf PaseSpain"
+                  : language === "en"
+                    ? "Sell them on PaseSpain"
+                    : language === "ca"
+                      ? "Ven-les a PaseSpain"
+                      : "Véndelas en PaseSpain"}
+              </div>
+
+              <div className="spain-ad-text spain-sell-ad-copy">
+                {language === "de"
+                  ? "Veröffentliche deine Tickets einfach und erreiche Fußballfans in ganz Spanien."
+                  : language === "en"
+                    ? "List your tickets easily and reach football fans across Spain."
+                    : language === "ca"
+                      ? "Publica les teves entrades fàcilment i arriba a aficionats de tot Espanya."
+                      : "Publica tus entradas de forma sencilla y llega a aficionados de toda España."}
+              </div>
+
+              <button
+                type="button"
+                className="spain-sell-ad-button"
+                onClick={() => {
+                  setActiveAuthRole("seller");
+                  setAuthRoleChosen(true);
+                  setSellerPublishError("");
+                  if (supabaseSession) {
+                    setLoggedInRole("seller");
+                    setSellerModalOpen(true);
+                  } else {
+                    setAuthMode("login");
+                    setAuthModalOpen(true);
+                  }
+                }}
+              >
+                {language === "de"
+                  ? "TICKETS VERKAUFEN →"
+                  : language === "en"
+                    ? "SELL TICKETS →"
+                    : language === "ca"
+                      ? "VENDRE ENTRADES →"
+                      : "VENDER ENTRADAS →"}
+              </button>
+            </aside>
+
+            <aside className="weather-panel neutral-glass spain-ad-card spain-ad-card-large">
+              <div className="spain-ad-label">Publicidad</div>
+              <div className="spain-ad-title">
+                {language === "de"
+                  ? "Werbeplatz verfügbar"
+                  : language === "en"
+                    ? "Advertising space available"
+                    : language === "ca"
+                      ? "Espai publicitari disponible"
+                      : "Espacio publicitario disponible"}
+              </div>
+              <div className="spain-ad-text">PaseSpain.es</div>
+            </aside>
+          </div>
         </section>
       </div>
 
@@ -12359,7 +13744,9 @@ export default function Home() {
                 <form
                   className="market-form"
                   onSubmit={
-                    handleLogin
+                    passwordRecoveryToken
+                      ? handlePasswordRecovery
+                      : handleLogin
                   }
                 >
                   {
@@ -12595,7 +13982,15 @@ export default function Home() {
 
                   <div className="market-field">
                     <label>
-                      Passwort
+                      {passwordRecoveryToken
+                        ? (language === "de"
+                            ? "Neues Passwort"
+                            : language === "en"
+                              ? "New password"
+                              : language === "ca"
+                                ? "Contrasenya nova"
+                                : "Nueva contraseña")
+                        : "Passwort"}
                     </label>
                     <div style={{ position: "relative" }}>
                       <input
@@ -12618,7 +14013,7 @@ export default function Home() {
                         {authPasswordVisible ? "🙈" : "👁️"}
                       </button>
                     </div>
-                    {authMode === "login" && (
+                    {authMode === "login" && !passwordRecoveryToken && (
                       <button
                         type="button"
                         onClick={handleForgotPassword}
@@ -12673,7 +14068,7 @@ export default function Home() {
                   <button
                     className="market-primary-button"
                     type="submit"
-                    disabled={authLoading}
+                    disabled={passwordRecoveryToken ? passwordRecoveryLoading : authLoading}
                   >
                     {
                       authLoading
@@ -12823,18 +14218,14 @@ export default function Home() {
                                 inputMode="decimal"
                                 value={sellerPriceEditValue}
                                 onChange={event =>
-                                  setSellerPriceEditValue(
-                                    event.target.value
-                                  )
+                                  setSellerPriceEditValue(event.target.value)
                                 }
                               />
                               <button
                                 className="seller-price-save-button"
                                 type="button"
                                 disabled={sellerPriceUpdating}
-                                onClick={() =>
-                                  handleSellerPriceUpdate(offer)
-                                }
+                                onClick={() => handleSellerPriceUpdate(offer)}
                               >
                                 {language === "de"
                                   ? "Speichern"
@@ -12866,9 +14257,7 @@ export default function Home() {
                                 type="button"
                                 onClick={() => {
                                   setSellerPriceEditId(offer.id || null);
-                                  setSellerPriceEditValue(
-                                    offer.price.replace("€", "")
-                                  );
+                                  setSellerPriceEditValue(offer.price.replace("€", ""));
                                   setSellerPriceEditError("");
                                 }}
                               >
@@ -12882,6 +14271,37 @@ export default function Home() {
                               </button>
                             </>
                           )}
+
+                          <button
+                            className="seller-offer-edit-button"
+                            type="button"
+                            onClick={() => startSellerOfferEdit(offer)}
+                          >
+                            {language === "de"
+                              ? "Bearbeiten"
+                              : language === "en"
+                                ? "Edit"
+                                : "Editar"}
+                          </button>
+
+                          <button
+                            className="seller-offer-delete-button"
+                            type="button"
+                            disabled={sellerOfferDeletingId === offer.id}
+                            onClick={() => handleSellerOfferDelete(offer)}
+                          >
+                            {sellerOfferDeletingId === offer.id
+                              ? language === "de"
+                                ? "Löschen …"
+                                : language === "en"
+                                  ? "Deleting …"
+                                  : "Eliminando …"
+                              : language === "de"
+                                ? "Löschen"
+                                : language === "en"
+                                  ? "Delete"
+                                  : "Eliminar"}
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -13132,112 +14552,130 @@ export default function Home() {
 
                     <div className="market-field">
                       <label>{language === "de" ? "Heimteam" : language === "en" ? "Home team" : language === "ca" ? "Equip local" : "Equipo local"}</label>
-                      <input
-                        type="text"
-                        value={sellerHome}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setSellerHome(value);
-                          setSellerMatchSelection("");
-                          const location = sellerTeamLocations[value.trim()];
-                          if (location) {
-                            setSellerStadium(location.stadium);
-                            setSellerCity(location.city);
-                          }
-                        }}
-                        list={
-                          sellerCompetition === "UEFA Champions League"
-                            ? "seller-home-teams-champions"
-                            : sellerCompetition === "LaLiga"
-                              ? "seller-home-teams-laliga"
-                              : "seller-home-teams-all"
-                        }
-                        placeholder={
-                          sellerCompetition === "UEFA Champions League"
-                            ? language === "de"
-                              ? "Champions-League-Verein wählen oder frei eingeben"
-                              : language === "en"
-                                ? "Choose a Champions League club or type any club"
-                                : language === "ca"
-                                  ? "Tria un club de Champions o escriu-ne qualsevol"
-                                  : "Elige un club de Champions o escribe cualquier club"
-                            : language === "de"
-                              ? "Verein wählen oder frei eingeben"
-                              : language === "en"
-                                ? "Choose a club or type any club"
-                                : language === "ca"
-                                  ? "Tria un club o escriu-ne qualsevol"
-                                  : "Elige un club o escribe cualquier club"
-                        }
-                        required
-                      />
-                      <datalist id="seller-home-teams-laliga">
-                        {laLigaTeamSuggestions.map((team) => (
-                          <option key={team} value={team} />
-                        ))}
-                      </datalist>
-                      <datalist id="seller-home-teams-champions">
-                        {championsLeagueTeamSuggestions.map((team) => (
-                          <option key={team} value={team} />
-                        ))}
-                      </datalist>
-                      <datalist id="seller-home-teams-all">
-                        {sellerTeamSuggestions.map((team) => (
-                          <option key={team} value={team} />
-                        ))}
-                      </datalist>
+
+                      {sellerCompetition === "UEFA Champions League" ? (
+                        <select
+                          value={sellerHome}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setSellerHome(value);
+                            setSellerMatchSelection("");
+                            const location = sellerTeamLocations[value.trim()];
+                            if (location) {
+                              setSellerStadium(location.stadium);
+                              setSellerCity(location.city);
+                            }
+                          }}
+                          required
+                        >
+                          <option value="">
+                            {language === "de" ? "Verein auswählen" : language === "en" ? "Choose club" : language === "ca" ? "Tria un club" : "Selecciona un club"}
+                          </option>
+                          {championsLeagueTeamSuggestions.map((team) => (
+                            <option key={team} value={team}>{team}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <>
+                          <input
+                            type="text"
+                            value={sellerHome}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setSellerHome(value);
+                              setSellerMatchSelection("");
+                              const location = sellerTeamLocations[value.trim()];
+                              if (location) {
+                                setSellerStadium(location.stadium);
+                                setSellerCity(location.city);
+                              }
+                            }}
+                            list={
+                              sellerCompetition === "LaLiga"
+                                ? "seller-home-teams-laliga"
+                                : "seller-home-teams-all"
+                            }
+                            placeholder={
+                              language === "de"
+                                ? "Verein wählen oder frei eingeben"
+                                : language === "en"
+                                  ? "Choose a club or type any club"
+                                  : language === "ca"
+                                    ? "Tria un club o escriu-ne qualsevol"
+                                    : "Elige un club o escribe cualquier club"
+                            }
+                            required
+                          />
+                          <datalist id="seller-home-teams-laliga">
+                            {laLigaTeamSuggestions.map((team) => (
+                              <option key={team} value={team} />
+                            ))}
+                          </datalist>
+                          <datalist id="seller-home-teams-all">
+                            {sellerTeamSuggestions.map((team) => (
+                              <option key={team} value={team} />
+                            ))}
+                          </datalist>
+                        </>
+                      )}
                     </div>
 
                     <div className="market-field">
                       <label>{language === "de" ? "Auswärtsteam" : language === "en" ? "Away team" : language === "ca" ? "Equip visitant" : "Equipo visitante"}</label>
-                      <input
-                        type="text"
-                        value={sellerAway}
-                        onChange={(event) => {
-                          setSellerAway(event.target.value);
-                          setSellerMatchSelection("");
-                        }}
-                        list={
-                          sellerCompetition === "UEFA Champions League"
-                            ? "seller-away-teams-champions"
-                            : sellerCompetition === "LaLiga"
-                              ? "seller-away-teams-laliga"
-                              : "seller-away-teams-all"
-                        }
-                        placeholder={
-                          sellerCompetition === "UEFA Champions League"
-                            ? language === "de"
-                              ? "Champions-League-Gegner wählen oder frei eingeben"
-                              : language === "en"
-                                ? "Choose a Champions League opponent or type any club"
-                                : language === "ca"
-                                  ? "Tria un rival de Champions o escriu-ne qualsevol"
-                                  : "Elige un rival de Champions o escribe cualquier club"
-                            : language === "de"
-                              ? "Verein wählen oder frei eingeben"
-                              : language === "en"
-                                ? "Choose a club or type any club"
-                                : language === "ca"
-                                  ? "Tria un club o escriu-ne qualsevol"
-                                  : "Elige un club o escribe cualquier club"
-                        }
-                        required
-                      />
-                      <datalist id="seller-away-teams-laliga">
-                        {laLigaTeamSuggestions.map((team) => (
-                          <option key={team} value={team} />
-                        ))}
-                      </datalist>
-                      <datalist id="seller-away-teams-champions">
-                        {championsLeagueTeamSuggestions.map((team) => (
-                          <option key={team} value={team} />
-                        ))}
-                      </datalist>
-                      <datalist id="seller-away-teams-all">
-                        {sellerTeamSuggestions.map((team) => (
-                          <option key={team} value={team} />
-                        ))}
-                      </datalist>
+
+                      {sellerCompetition === "UEFA Champions League" ? (
+                        <select
+                          value={sellerAway}
+                          onChange={(event) => {
+                            setSellerAway(event.target.value);
+                            setSellerMatchSelection("");
+                          }}
+                          required
+                        >
+                          <option value="">
+                            {language === "de" ? "Verein auswählen" : language === "en" ? "Choose club" : language === "ca" ? "Tria un club" : "Selecciona un club"}
+                          </option>
+                          {championsLeagueTeamSuggestions.map((team) => (
+                            <option key={team} value={team}>{team}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <>
+                          <input
+                            type="text"
+                            value={sellerAway}
+                            onChange={(event) => {
+                              setSellerAway(event.target.value);
+                              setSellerMatchSelection("");
+                            }}
+                            list={
+                              sellerCompetition === "LaLiga"
+                                ? "seller-away-teams-laliga"
+                                : "seller-away-teams-all"
+                            }
+                            placeholder={
+                              language === "de"
+                                ? "Verein wählen oder frei eingeben"
+                                : language === "en"
+                                  ? "Choose a club or type any club"
+                                  : language === "ca"
+                                    ? "Tria un club o escriu-ne qualsevol"
+                                    : "Elige un club o escribe cualquier club"
+                            }
+                            required
+                          />
+                          <datalist id="seller-away-teams-laliga">
+                            {laLigaTeamSuggestions.map((team) => (
+                              <option key={team} value={team} />
+                            ))}
+                          </datalist>
+                          <datalist id="seller-away-teams-all">
+                            {sellerTeamSuggestions.map((team) => (
+                              <option key={team} value={team} />
+                            ))}
+                          </datalist>
+                        </>
+                      )}
                     </div>
 
                     <div className="market-field">
@@ -13323,29 +14761,29 @@ export default function Home() {
 
                                         <div className="market-field">
                       <label>{language === "de" ? "Zone / Tribüne" : language === "en" ? "Zone / stand" : language === "ca" ? "Zona / graderia" : "Zona / grada"}</label>
-                      <select
+                      <input
+                        type="text"
                         value={sellerZone}
                         onChange={(event) => setSellerZone(event.target.value)}
+                        placeholder={
+                          language === "de"
+                            ? "Bezeichnung wie auf dem Ticket, z. B. Tribuna Preferente Central"
+                            : language === "en"
+                              ? "Name exactly as shown on the ticket, e.g. Tribuna Preferente Central"
+                              : language === "ca"
+                                ? "Nom tal com apareix a l'entrada, p. ex. Tribuna Preferente Central"
+                                : "Nombre tal como aparece en la entrada, p. ej. Tribuna Preferente Central"
+                        }
                         required
-                      >
-                        <option value="">{language === "de" ? "Bitte auswählen" : language === "en" ? "Please select" : language === "ca" ? "Selecciona" : "Selecciona"}</option>
-                        <option value="Haupttribüne">{language === "de" ? "Haupttribüne" : language === "en" ? "Main stand" : language === "ca" ? "Tribuna principal" : "Tribuna principal"}</option>
-                        <option value="Gegentribüne">{language === "de" ? "Gegentribüne" : language === "en" ? "Opposite stand" : language === "ca" ? "Tribuna lateral oposada" : "Grada lateral opuesta"}</option>
-                        <option value="Lateral">Lateral</option>
-                        <option value="Fondo">Fondo</option>
-                        <option value="Gol Norte">Gol Norte</option>
-                        <option value="Gol Sur">Gol Sur</option>
-                        <option value="VIP / Hospitality">VIP / Hospitality</option>
-                        <option value="Andere Zone">{language === "de" ? "Andere Zone" : language === "en" ? "Other zone" : language === "ca" ? "Una altra zona" : "Otra zona"}</option>
-                      </select>
+                      />
                     </div>
 
                     <div className="market-field">
-                      <label>{language === "de" ? "Sektor" : language === "en" ? "Sector" : language === "ca" ? "Sector" : "Sector"}</label>
+                      <label>{language === "de" ? "Reihe" : language === "en" ? "Row" : language === "ca" ? "Fila" : "Fila"}</label>
                       <select
                         value={sellerSector}
                         onChange={(event) => setSellerSector(event.target.value)}
-                        required
+                        required={!sellerOfferEditId}
                       >
                         <option value="">{language === "de" ? "Bitte auswählen" : language === "en" ? "Please select" : language === "ca" ? "Selecciona" : "Selecciona"}</option>
                         {Array.from({ length: 100 }, (_, index) => index + 1).map(sector => (
@@ -13559,6 +14997,28 @@ export default function Home() {
                     </button>
                   </div>
 
+                  {sellerOfferEditId && (
+                    <div className="seller-edit-mode">
+                      <strong>
+                        {language === "de"
+                          ? "Ticket wird bearbeitet"
+                          : language === "en"
+                            ? "Editing ticket"
+                            : "Editando entrada"}
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={cancelSellerOfferEdit}
+                      >
+                        {language === "de"
+                          ? "Abbrechen"
+                          : language === "en"
+                            ? "Cancel"
+                            : "Cancelar"}
+                      </button>
+                    </div>
+                  )}
+
                   {
                     sellerPublishError && (
                       <p className="market-error">
@@ -13574,20 +15034,32 @@ export default function Home() {
                   >
                     {
                       sellerPublishing
-                        ? language === "de"
-                          ? "Wird veröffentlicht …"
-                          : language === "en"
-                            ? "Publishing …"
-                            : language === "ca"
-                              ? "Publicant …"
-                              : "Publicando …"
-                        : language === "de"
-                          ? "Angebot veröffentlichen"
-                        : language === "en"
-                          ? "Publish offer"
-                          : language === "ca"
-                            ? "Publicar oferta"
-                            : "Publicar oferta"
+                        ? sellerOfferEditId
+                          ? language === "de"
+                            ? "Änderungen werden gespeichert …"
+                            : language === "en"
+                              ? "Saving changes …"
+                              : "Guardando cambios …"
+                          : language === "de"
+                            ? "Wird veröffentlicht …"
+                            : language === "en"
+                              ? "Publishing …"
+                              : language === "ca"
+                                ? "Publicant …"
+                                : "Publicando …"
+                        : sellerOfferEditId
+                          ? language === "de"
+                            ? "Änderungen speichern"
+                            : language === "en"
+                              ? "Save changes"
+                              : "Guardar cambios"
+                          : language === "de"
+                            ? "Angebot veröffentlichen"
+                            : language === "en"
+                              ? "Publish offer"
+                              : language === "ca"
+                                ? "Publicar oferta"
+                                : "Publicar oferta"
                     }
                   </button>
                 </form>
@@ -13620,11 +15092,6 @@ export default function Home() {
                 </button>
 
                 <div className="fairplay-modal-head">
-                  <img
-                    src="/publicfairplay.png"
-                    alt=""
-                    aria-hidden="true"
-                  />
                   <div>
                     <span>PaseSpain</span>
                     <h2>Fairplay</h2>
@@ -14042,16 +15509,10 @@ export default function Home() {
 
           <button
             type="button"
-            onClick={() => {
-              setMobilePage("home");
-              setTimeout(() =>
-                document
-                  .getElementById("mobile-more")
-                  ?.scrollIntoView({ behavior: "smooth" }), 0
-              );
-            }}
+            onClick={() => setCartOpen(true)}
+            aria-label={t.cart}
           >
-            Mehr
+            {t.cart}{cartItems.length > 0 ? ` (${cartItems.length})` : ""}
           </button>
         </nav>
 
@@ -14115,28 +15576,6 @@ export default function Home() {
           }
         }
 
-        @media (min-width: 768px) and (max-width: 1180px) and (hover: none) and (pointer: coarse) {
-          .psv2-mobile-subtitle {
-            top: calc(232px + env(safe-area-inset-top, 0px)) !important;
-            padding: 0 12px !important;
-            border: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            color: transparent !important;
-            -webkit-text-fill-color: transparent !important;
-            background-image: linear-gradient(90deg, #173a8f 0%, #00aeea 100%) !important;
-            -webkit-background-clip: text !important;
-            background-clip: text !important;
-            font-weight: 800 !important;
-          }
-
-          .psv2-legal-links,
-          .psv2-legal-links a {
-            z-index: 10020 !important;
-            pointer-events: auto !important;
-            touch-action: manipulation !important;
-          }
-        }
       `}</style>
 
 
@@ -14146,6 +15585,34 @@ export default function Home() {
         onClose={() => setVoiceAssistantOpen(false)}
         language={language}
         offers={currentPaseSpainOffers}
+        onAddToCart={(offer) => {
+          const canAdd = loggedInRole === "buyer";
+          addToCart(offer);
+
+          return canAdd
+            ? {
+                added: true,
+                message:
+                  language === "de"
+                    ? "Das Ticket ist im Warenkorb. Bitte öffne den Warenkorb und schliesse den Kauf über den Checkout ab."
+                    : language === "en"
+                      ? "The ticket is in your cart. Please open the cart and complete the purchase through checkout."
+                      : language === "ca"
+                        ? "L'entrada és al carret. Obre el carret i completa la compra mitjançant el checkout."
+                        : "La entrada está en el carrito. Abre el carrito y completa la compra mediante el checkout.",
+              }
+            : {
+                added: false,
+                message:
+                  language === "de"
+                    ? "Bitte melde dich zuerst als Käufer an. Danach kann das Ticket in den Warenkorb gelegt werden."
+                    : language === "en"
+                      ? "Please sign in as a buyer first. The ticket can then be added to the cart."
+                      : language === "ca"
+                        ? "Inicia sessió primer com a comprador. Després podràs afegir l'entrada al carret."
+                        : "Inicia sesión primero como comprador. Después podrás añadir la entrada al carrito.",
+              };
+        }}
         onSearchTickets={() => {
           // Amelia durchsucht ihre bereits geladenen PaseSpain-Angebote selbst.
           // Die Hauptseite wird dabei absichtlich nicht verändert.

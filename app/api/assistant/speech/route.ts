@@ -6,9 +6,6 @@ export const dynamic = "force-dynamic";
 const ELEVENLABS_API_URL =
   "https://api.elevenlabs.io/v1/text-to-speech/p7AwDmKvTdoHTBuueGvP";
 
-// Malena bleibt exakt dieselbe ElevenLabs-Stimme.
-// Flash v2.5 reduziert die Antwortzeit; hohe Stability + Similarity verhindern,
-// dass die Stimme innerhalb längerer Antworten hörbar abdriftet.
 const MODEL_ID = "eleven_flash_v2_5";
 
 const VOICE_SETTINGS = {
@@ -29,8 +26,10 @@ async function createSpeech(text: string) {
   const cleanText = text.trim();
   if (!cleanText) throw new Error("Kein Text zum Sprechen vorhanden.");
 
+  const speechText = cleanText.slice(0, 1400);
+
   const response = await fetch(
-    `${ELEVENLABS_API_URL}?output_format=mp3_44100_128&optimize_streaming_latency=3`,
+    `${ELEVENLABS_API_URL}?output_format=mp3_44100_64&optimize_streaming_latency=4`,
     {
       method: "POST",
       headers: {
@@ -39,7 +38,7 @@ async function createSpeech(text: string) {
         Accept: "audio/mpeg",
       },
       body: JSON.stringify({
-        text: cleanText,
+        text: speechText,
         model_id: MODEL_ID,
         voice_settings: VOICE_SETTINGS,
         seed: 271828,
