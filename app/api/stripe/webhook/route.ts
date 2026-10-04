@@ -178,8 +178,14 @@ export async function POST(request: NextRequest) {
       const buyerTotal =
         Math.round(ticketPrice * 1.1 * 100) / 100;
 
+      const buyerFee =
+        Math.round((buyerTotal - ticketPrice) * 100) / 100;
+
       const sellerPayout =
         Math.round(ticketPrice * 0.9 * 100) / 100;
+
+      const sellerFee =
+        Math.round((ticketPrice - sellerPayout) * 100) / 100;
 
       // Bestellung speichern
       const orderResponse = await fetch(
@@ -319,6 +325,23 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const buyerName = [
+        buyerProfile.first_name,
+        buyerProfile.last_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      const buyerPhone =
+        buyerProfile.phone?.trim() || "Nicht angegeben";
+
+      const safeBuyerName =
+        buyerName || "Nicht angegeben";
+
+      const safeBuyerEmail =
+        buyerEmail || "Nicht angegeben";
+
       /*
        * Verkäufer benachrichtigen.
        * Ein Mailfehler darf einen bereits bezahlten Kauf
@@ -326,23 +349,6 @@ export async function POST(request: NextRequest) {
        */
       if (resendApiKey && sellerEmail) {
         try {
-          const buyerName = [
-            buyerProfile.first_name,
-            buyerProfile.last_name,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .trim();
-
-          const buyerPhone =
-            buyerProfile.phone?.trim() || "Nicht angegeben";
-
-          const safeBuyerName =
-            buyerName || "Nicht angegeben";
-
-          const safeBuyerEmail =
-            buyerEmail || "Nicht angegeben";
-
           const emailResponse = await fetch(
             RESEND_API_URL,
             {
@@ -388,6 +394,7 @@ export async function POST(request: NextRequest) {
 
                     <p>
                       Ticketpreis: € ${ticketPrice.toFixed(2)}<br>
+                      PaseSpain Verkäufergebühr: € ${sellerFee.toFixed(2)}<br>
                       Deine Auszahlung: <strong>€ ${sellerPayout.toFixed(
                         2
                       )}</strong>
@@ -435,6 +442,102 @@ export async function POST(request: NextRequest) {
             `Keine Verkäufer-E-Mail für ${offer.seller_id} gefunden.`
           );
         }
+      }
+
+      /*
+       * Käufer über den erfolgreichen Kauf informieren.
+       * Auch hier darf ein Mailfehler den Kauf NICHT rückgängig machen.
+       */
+      if (resendApiKey && buyerEmail) {
+        try {
+          const buyerEmailResponse = await fetch(
+            RESEND_API_URL,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${resendApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "PaseSpain <tickets@pasespain.es>",
+                to: [buyerEmail],
+                subject: `Kauf bestätigt: ${offer.home} – ${offer.away}`,
+                html: `
+                  <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;line-height:1.6;color:#111;">
+                    <h2>Dein Kauf ist bestätigt</h2>
+
+                    <p>
+                      Hallo ${escapeHtml(
+                        buyerProfile.first_name?.trim() || ""
+                      )},
+                    </p>
+
+                    <p>
+                      deine Zahlung war erfolgreich.
+                      Hier findest du die Zusammenfassung deines Kaufs.
+                    </p>
+
+                    <h3>Dein Ticket</h3>
+
+                    <p>
+                      <strong>${escapeHtml(offer.home)} – ${escapeHtml(
+                        offer.away
+                      )}</strong><br>
+                      ${escapeHtml(offer.match_date || "")}<br>
+                      ${escapeHtml(offer.stadium || "")}
+                    </p>
+
+                    <h3>Zahlung</h3>
+
+                    <p>
+                      Ticketpreis: € ${ticketPrice.toFixed(2)}<br>
+                      PaseSpain Käufergebühr: € ${buyerFee.toFixed(2)}<br>
+                      <strong>Gesamt bezahlt: € ${buyerTotal.toFixed(
+                        2
+                      )}</strong>
+                    </p>
+
+                    <h3>Wie geht es weiter?</h3>
+
+                    <p>
+                      Der Verkäufer wurde über deinen Kauf informiert
+                      und ist für die Übermittlung des gekauften Tickets
+                      verantwortlich.
+                    </p>
+
+                    <p>
+                      Bewahre diese E-Mail als Kaufbestätigung auf.
+                    </p>
+
+                    <p>
+                      PaseSpain
+                    </p>
+                  </div>
+                `,
+              }),
+            }
+          );
+
+          if (!buyerEmailResponse.ok) {
+            console.error(
+              "Resend Käufer-Mail fehlgeschlagen:",
+              await buyerEmailResponse.text()
+            );
+          } else {
+            console.log(
+              `Käufer ${buyerEmail} wurde über den Kauf informiert.`
+            );
+          }
+        } catch (emailError) {
+          console.error(
+            "Käufer-Mail konnte nicht gesendet werden:",
+            emailError
+          );
+        }
+      } else if (!buyerEmail) {
+        console.error(
+          `Keine Käufer-E-Mail für ${buyerId} gefunden.`
+        );
       }
     }
 
