@@ -13367,21 +13367,33 @@ export default function Home() {
             </aside>
             {/* Copa del Rey */}
 <aside
-  className="weather-panel neutral-glass spain-ad-card spain-ad-card-large"
+ className="weather-panel neutral-glass spain-ad-card spain-ad-card-large copa-pasespain-fix"
   style={{
     background:
-      "linear-gradient(145deg, rgba(92,20,28,.94), rgba(42,14,20,.96))",
-    border: "1px solid rgba(255,255,255,.22)",
-    boxShadow: "0 16px 38px rgba(0,0,0,.25)",
+      "linear-gradient(145deg, rgba(105,24,34,.94), rgba(45,12,20,.96))",
+    border: "1px solid rgba(255,255,255,.25)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,.18), 0 16px 38px rgba(0,0,0,.28)",
     color: "#ffffff",
   }}
 >
+  {/* eigenes schwaches Wasserzeichen */}
+  <div
+    aria-hidden="true"
+    style={{
+      position: "absolute",
+      inset: "10px",
+      background:
+        'url("/pasespain-logo-transparent.png") center / 88% auto no-repeat',
+      opacity: 0.12,
+      pointerEvents: "none",
+      zIndex: 0,
+    }}
+  />
+
   <div
     className="spain-ad-label"
-    style={{
-      color: "#f5d98b",
-      textShadow: "0 1px 3px rgba(0,0,0,.5)",
-    }}
+    style={{ color: "#f5d98b", opacity: 1 }}
   >
     🏆 COPA DEL REY
   </div>
@@ -13390,7 +13402,7 @@ export default function Home() {
     className="spain-ad-title"
     style={{
       color: "#ffffff",
-      textShadow: "0 2px 5px rgba(0,0,0,.55)",
+      textShadow: "0 2px 6px rgba(0,0,0,.65)",
     }}
   >
     HOY ES EL SORTEO
@@ -13398,7 +13410,10 @@ export default function Home() {
 
   <div
     className="spain-ad-text"
-    style={{ color: "rgba(255,255,255,.88)" }}
+    style={{
+      color: "rgba(255,255,255,.88)",
+      opacity: 1,
+    }}
   >
     Sorteo de la primera ronda
   </div>
@@ -13417,25 +13432,29 @@ export default function Home() {
   >
     VER SORTEO OFICIAL →
   </a>
+
+  <style>{`
+    .spain-ad-card.copa-pasespain-fix::before {
+      opacity: 0 !important;
+    }
+  `}</style>
 </aside>
 
 {/* Champions League */}
 <aside
-  className="weather-panel neutral-glass spain-ad-card spain-ad-card-large"
+  className="weather-panel neutral-glass spain-ad-card spain-ad-card-large champions-pasespain-fix"
   style={{
     background:
-      "linear-gradient(145deg, rgba(20,35,82,.94), rgba(10,18,48,.96))",
-    border: "1px solid rgba(255,255,255,.22)",
-    boxShadow: "0 16px 38px rgba(0,0,0,.25)",
+      "linear-gradient(145deg, rgba(25,40,95,.95), rgba(8,17,48,.97))",
+    border: "1px solid rgba(255,255,255,.25)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,.18), 0 16px 38px rgba(0,0,0,.28)",
     color: "#ffffff",
   }}
 >
   <div
     className="spain-ad-label"
-    style={{
-      color: "#dce5ff",
-      textShadow: "0 1px 3px rgba(0,0,0,.5)",
-    }}
+    style={{ color: "#dce5ff", opacity: 1 }}
   >
     ★ CHAMPIONS LEAGUE
   </div>
@@ -13444,7 +13463,7 @@ export default function Home() {
     className="spain-ad-title"
     style={{
       color: "#ffffff",
-      textShadow: "0 2px 5px rgba(0,0,0,.55)",
+      textShadow: "0 2px 6px rgba(0,0,0,.65)",
     }}
   >
     LA EMOCIÓN CONTINÚA
@@ -13452,7 +13471,10 @@ export default function Home() {
 
   <div
     className="spain-ad-text"
-    style={{ color: "rgba(255,255,255,.88)" }}
+    style={{
+      color: "rgba(255,255,255,.88)",
+      opacity: 1,
+    }}
   >
     Encuentra entradas para los grandes partidos
   </div>
@@ -13467,10 +13489,25 @@ export default function Home() {
     onClick={() => {
       setSearchText("Champions League");
       setSearchActive(true);
+
+      setTimeout(() => {
+        document
+          .getElementById("mobile-offers")
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+      }, 50);
     }}
   >
     VER ENTRADAS →
   </button>
+
+  <style>{`
+    .champions-pasespain-fix::before {
+      opacity: .12 !important;
+    }
+  `}</style>
 </aside>
           </div>
         </section>
