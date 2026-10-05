@@ -13370,20 +13370,36 @@ export default function Home() {
   className="weather-panel neutral-glass spain-ad-card spain-ad-card-large"
   style={{
     background:
-      "linear-gradient(145deg, rgba(105,12,24,.78), rgba(19,12,18,.88))",
-    border: "1px solid rgba(255,215,120,.32)",
-    boxShadow: "0 18px 45px rgba(0,0,0,.30)",
+      "linear-gradient(145deg, rgba(92,20,28,.94), rgba(42,14,20,.96))",
+    border: "1px solid rgba(255,255,255,.22)",
+    boxShadow: "0 16px 38px rgba(0,0,0,.25)",
+    color: "#ffffff",
   }}
 >
-  <div className="spain-ad-label" style={{ color: "#f5d98b" }}>
+  <div
+    className="spain-ad-label"
+    style={{
+      color: "#f5d98b",
+      textShadow: "0 1px 3px rgba(0,0,0,.5)",
+    }}
+  >
     🏆 COPA DEL REY
   </div>
 
-  <div className="spain-ad-title">
+  <div
+    className="spain-ad-title"
+    style={{
+      color: "#ffffff",
+      textShadow: "0 2px 5px rgba(0,0,0,.55)",
+    }}
+  >
     HOY ES EL SORTEO
   </div>
 
-  <div className="spain-ad-text">
+  <div
+    className="spain-ad-text"
+    style={{ color: "rgba(255,255,255,.88)" }}
+  >
     Sorteo de la primera ronda
   </div>
 
@@ -13394,8 +13410,9 @@ export default function Home() {
     className="spain-sell-ad-button"
     style={{
       display: "inline-flex",
-      marginTop: "14px",
+      marginTop: "16px",
       textDecoration: "none",
+      color: "#ffffff",
     }}
   >
     VER SORTEO OFICIAL →
@@ -13407,27 +13424,46 @@ export default function Home() {
   className="weather-panel neutral-glass spain-ad-card spain-ad-card-large"
   style={{
     background:
-      "linear-gradient(145deg, rgba(15,28,76,.82), rgba(8,13,32,.90))",
-    border: "1px solid rgba(120,160,255,.32)",
-    boxShadow: "0 18px 45px rgba(0,0,0,.30)",
+      "linear-gradient(145deg, rgba(20,35,82,.94), rgba(10,18,48,.96))",
+    border: "1px solid rgba(255,255,255,.22)",
+    boxShadow: "0 16px 38px rgba(0,0,0,.25)",
+    color: "#ffffff",
   }}
 >
-  <div className="spain-ad-label" style={{ color: "#dce5ff" }}>
+  <div
+    className="spain-ad-label"
+    style={{
+      color: "#dce5ff",
+      textShadow: "0 1px 3px rgba(0,0,0,.5)",
+    }}
+  >
     ★ CHAMPIONS LEAGUE
   </div>
 
-  <div className="spain-ad-title">
+  <div
+    className="spain-ad-title"
+    style={{
+      color: "#ffffff",
+      textShadow: "0 2px 5px rgba(0,0,0,.55)",
+    }}
+  >
     LA EMOCIÓN CONTINÚA
   </div>
 
-  <div className="spain-ad-text">
+  <div
+    className="spain-ad-text"
+    style={{ color: "rgba(255,255,255,.88)" }}
+  >
     Encuentra entradas para los grandes partidos
   </div>
 
   <button
     type="button"
     className="spain-sell-ad-button"
-    style={{ marginTop: "14px" }}
+    style={{
+      marginTop: "16px",
+      color: "#ffffff",
+    }}
     onClick={() => {
       setSearchText("Champions League");
       setSearchActive(true);
