@@ -19,6 +19,11 @@ type TicketOffer = {
   unitPrice?: number;
   ticketCount?: number;
   childTickets?: number;
+  section?: string;
+rowNumber?: string;
+seatNumber?: string;
+quantity?: number;
+adjacentSeats?: boolean;
   details?: string;
 };
 
@@ -11909,8 +11914,7 @@ export default function Home() {
                       : language === "ca"
                         ? "Vendre entrada"
                         : language === "en"
-                          ? "Sell ticket"
-                          : "Ticket verkaufen"}
+                          ? "Sell ticket": "Ticket verkaufen"}
                   </strong>
                   <small>
                     {language === "es"
