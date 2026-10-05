@@ -1614,6 +1614,7 @@ export default function Home() {
     sellerSector,
     setSellerSector,
   ] = useState("");
+  const [sellerRow, setSellerRow] = useState("");
 
   const [
     sellerCity,
@@ -3455,6 +3456,7 @@ export default function Home() {
     setSellerZone(sellerDetailValue(details, "Zone / Tribüne"));
     setSellerSector(sellerDetailValue(details, "Reihe") || sellerDetailValue(details, "Sektor"));
     setSellerCity(offer.city || "");
+    setSellerRow(offer.rowNumber || "");
     setSellerPrice(offer.price.replace("€", "").trim());
     setSellerTicketCount(
       sellerDetailValue(details, "Anzahl Tickets") ||
@@ -3485,6 +3487,7 @@ export default function Home() {
     setSellerStadium("");
     setSellerZone("");
     setSellerSector("");
+    setSellerRow("");
     setSellerCity("");
     setSellerPrice("");
     setSellerTicketCount("");
@@ -4105,7 +4108,7 @@ export default function Home() {
                       : "Termin: Bestätigt",
                     `Anzahl Tickets: ${numericTicketCount}`,
                     `Zone / Tribüne: ${sellerZone.trim()}`,
-                    `Reihe: ${sellerSector.trim()}`,
+                    `Reihe: ${sellerRow.trim()}`,
                     `Kindertickets: ${numericChildTickets}`,
                     sellerChildTicketDescription.trim()
                       ? `Kindertickets Beschreibung: ${sellerChildTicketDescription.trim()}`
@@ -13362,6 +13365,77 @@ export default function Home() {
               </div>
               <div className="spain-ad-text">PaseSpain.es</div>
             </aside>
+            {/* Copa del Rey */}
+<aside
+  className="weather-panel neutral-glass spain-ad-card spain-ad-card-large"
+  style={{
+    background:
+      "linear-gradient(145deg, rgba(105,12,24,.78), rgba(19,12,18,.88))",
+    border: "1px solid rgba(255,215,120,.32)",
+    boxShadow: "0 18px 45px rgba(0,0,0,.30)",
+  }}
+>
+  <div className="spain-ad-label" style={{ color: "#f5d98b" }}>
+    🏆 COPA DEL REY
+  </div>
+
+  <div className="spain-ad-title">
+    HOY ES EL SORTEO
+  </div>
+
+  <div className="spain-ad-text">
+    Sorteo de la primera ronda
+  </div>
+
+  <a
+    href="https://rfef.es/es/competiciones/copa-del-rey"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="spain-sell-ad-button"
+    style={{
+      display: "inline-flex",
+      marginTop: "14px",
+      textDecoration: "none",
+    }}
+  >
+    VER SORTEO OFICIAL →
+  </a>
+</aside>
+
+{/* Champions League */}
+<aside
+  className="weather-panel neutral-glass spain-ad-card spain-ad-card-large"
+  style={{
+    background:
+      "linear-gradient(145deg, rgba(15,28,76,.82), rgba(8,13,32,.90))",
+    border: "1px solid rgba(120,160,255,.32)",
+    boxShadow: "0 18px 45px rgba(0,0,0,.30)",
+  }}
+>
+  <div className="spain-ad-label" style={{ color: "#dce5ff" }}>
+    ★ CHAMPIONS LEAGUE
+  </div>
+
+  <div className="spain-ad-title">
+    LA EMOCIÓN CONTINÚA
+  </div>
+
+  <div className="spain-ad-text">
+    Encuentra entradas para los grandes partidos
+  </div>
+
+  <button
+    type="button"
+    className="spain-sell-ad-button"
+    style={{ marginTop: "14px" }}
+    onClick={() => {
+      setSearchText("Champions League");
+      setSearchActive(true);
+    }}
+  >
+    VER ENTRADAS →
+  </button>
+</aside>
           </div>
         </section>
       </div>
@@ -14785,8 +14859,8 @@ export default function Home() {
                     <div className="market-field">
                       <label>{language === "de" ? "Reihe" : language === "en" ? "Row" : language === "ca" ? "Fila" : "Fila"}</label>
                       <select
-                        value={sellerSector}
-                        onChange={(event) => setSellerSector(event.target.value)}
+                      value={sellerRow}
+                      onChange={(event) => setSellerRow(event.target.value)}
                         required={!sellerOfferEditId}
                       >
                         <option value="">{language === "de" ? "Bitte auswählen" : language === "en" ? "Please select" : language === "ca" ? "Selecciona" : "Selecciona"}</option>
