@@ -1995,3 +1995,32 @@ a {
 .fixture-notice { border-left: 3px solid #ffd080; padding: 12px 16px; background: #263248; }
 
 .market-form input[aria-invalid='true'], .market-form select[aria-invalid='true'], .market-form textarea[aria-invalid='true'] { outline: 2px solid #b91c1c; outline-offset: 2px; }
+
+@media (max-width: 1100px) {
+  #mobile-start.header {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto !important;
+    gap: 12px !important;
+  }
+  #mobile-start .brand-area { grid-column: 1 !important; grid-row: 1 !important; min-width: 0; }
+  #mobile-start .brand-text { flex-wrap: wrap; }
+  #mobile-start .header-right {
+    display: flex !important;
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    min-width: 0;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
+  #mobile-start .language-switch { width: auto !important; max-width: 100%; margin: 0 !important; }
+  #mobile-start .header-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    width: auto !important;
+    max-width: 100%;
+    margin: 0 !important;
+    gap: 10px !important;
+  }
+}
