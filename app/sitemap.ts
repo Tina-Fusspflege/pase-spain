@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
-import { getMatches } from "./lib/matches";
-import { SITE_URL } from "./lib/match-url";
+import { verifiedFixtures } from "./lib/verified-fixtures";
+import { matchPath, SITE_URL } from "./lib/match-url";
 
-export const revalidate = 60;
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const matches = await getMatches();
+// Crawler access must not depend on the inventory database being online.
+// New fixture URLs enter this sitemap after their calendar details are reviewed.
+export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: SITE_URL,
@@ -12,6 +12,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     { url: `${SITE_URL}/partidos`, changeFrequency: "daily", priority: 0.8 },
-    ...matches.map(match => ({ url: `${SITE_URL}/partido/${match.slug}`, changeFrequency: "daily" as const, priority: 0.7 })),
+    ...verifiedFixtures.map(match => ({ url: `${SITE_URL}${matchPath(match.home, match.away, match.date)}`, lastModified: match.checkedAt, changeFrequency: "daily" as const, priority: 0.7 })),
   ];
 }

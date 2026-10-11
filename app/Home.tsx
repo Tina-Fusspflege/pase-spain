@@ -1,12 +1,24 @@
 "use client";
 
 import Image from "next/image";
-import { matchPath } from "./lib/match-url";
+import { matchPath, matchSlug } from "./lib/match-url";
+import { fixtureReviews, verifiedFixtures } from "./lib/verified-fixtures";
 import { useEffect, useMemo, useState } from "react";
 import PaseSpainVoiceAssistant from "../components/PaseSpainVoiceAssistant";
 
 type Language = "es" | "ca" | "en" | "de";
 type UserRole = "seller" | "buyer";
+
+function OfferSchedule({ offer, language }: { offer: { home: string; away: string; date: string }; language: Language }) {
+  const slug = matchSlug(offer.home, offer.away, offer.date);
+  const fixture = verifiedFixtures.find(item => matchSlug(item.home, item.away, item.date) === slug);
+  const review = fixtureReviews[slug];
+  const mismatch = fixture?.kickoff && offer.date.slice(11, 16) !== fixture.kickoff;
+  const pending = { es: "Horario pendiente", ca: "Horari pendent", en: "Kickoff pending", de: "Anstoßzeit offen" }[language];
+  const warning = { es: "Datos del anuncio por confirmar. Ver detalles del partido.", ca: "Dades de l’anunci per confirmar. Consulta els detalls del partit.", en: "Listing details need confirmation. See match details.", de: "Angebotsdaten müssen bestätigt werden. Siehe Spieldetails." }[language];
+  const date = fixture ? `${fixture.date} · ${fixture.kickoff ?? pending}` : offer.date.replace("T", " · ");
+  return <><span>{date}</span>{(review || mismatch || fixture?.provisional) && <small style={{ display: "block", color: "#9a3412", fontWeight: 600 }}>{fixture?.provisional ? pending : warning}</small>}</>;
+}
 
 type TicketOffer = {
   id?: string;
@@ -83,6 +95,7 @@ type LaLigaDayResponse = {
 
 type SellerOrder = {
   id: string;
+  ticket_available?: boolean;
   offer_id: string | null;
   home: string;
   away: string;
@@ -1630,7 +1643,7 @@ export default function Home() {
   const [
     sellerTicketCount,
     setSellerTicketCount,
-  ] = useState("");
+  ] = useState("1");
 
   const [
     sellerChildTickets,
@@ -3508,7 +3521,7 @@ export default function Home() {
     setSellerRow("");
     setSellerCity("");
     setSellerPrice("");
-    setSellerTicketCount("");
+    setSellerTicketCount("1");
     setSellerChildTickets("");
     setSellerChildTicketDescription("");
     setSellerDescription("");
@@ -3927,29 +3940,27 @@ export default function Home() {
       return;
     }
 
-    if (
-      !sellerCompetition.trim() ||
-      !sellerHome.trim() ||
-      !sellerAway.trim() ||
-      (!sellerDateOpen && !sellerDate.trim()) ||
-      !sellerStadium.trim() ||
-      (!sellerOfferEditId && !sellerZone.trim()) ||
-      (!sellerOfferEditId && !sellerSector.trim()) ||
-      !sellerPrice.trim() ||
-      !sellerTicketCount.trim()
-    ) {
-      setSellerPublishError(
-        language === "de"
-          ? "Bitte alle Pflichtfelder ausfüllen."
-          : language === "en"
-            ? "Please complete all required fields."
-            : language === "ca"
-              ? "Omple tots els camps obligatoris."
-              : "Completa todos los campos obligatorios."
-      );
+    const form = event.currentTarget;
+    const controls = Array.from(form.elements).filter(
+      (element): element is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement =>
+        element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement
+    );
+    controls.forEach(control => control.removeAttribute("aria-invalid"));
+    const invalid = controls.filter(control => !control.disabled &&
+      ((!control.validity.valid) || (control.required && !control.value.trim())));
+    if (invalid.length) {
+      const names = [...new Set(invalid.map(control =>
+        control.closest(".market-field")?.querySelector("label")?.textContent?.trim() || control.name || "Campo"
+      ))];
+      const prefix = language === "de" ? "Bitte ausfüllen oder korrigieren: "
+        : language === "en" ? "Please complete or correct: "
+        : language === "ca" ? "Completa o corregeix: " : "Completa o corrige: ";
+      setSellerPublishError(prefix + names.join(", ") + ".");
+      invalid.forEach(control => control.setAttribute("aria-invalid", "true"));
+      invalid[0].scrollIntoView({ block: "center", behavior: "smooth" });
+      invalid[0].focus({ preventScroll: true });
       return;
     }
-
     if (
       loggedInRole !== "seller" ||
       !supabaseSession?.access_token ||
@@ -3993,13 +4004,14 @@ export default function Home() {
     ) {
       setSellerPublishError(
         language === "de"
-          ? "Bitte eine gültige gewünschte Auszahlung eingeben."
+          ? "Bitte einen gültigen Verkaufspreis pro Ticket eingeben."
           : language === "en"
             ? "Please enter a valid price."
             : language === "ca"
               ? "Introdueix un preu vàlid."
               : "Introduce un precio válido."
       );
+      document.getElementById("seller-ticket-price")?.focus();
       return;
     }
 
@@ -4118,6 +4130,7 @@ export default function Home() {
                   sellerCity.trim(),
                 price_eur:
                   numericPrice,
+                quantity: numericTicketCount,
                 details:
                   [
                     `Wettbewerb: ${sellerCompetition.trim()}`,
@@ -4194,7 +4207,7 @@ export default function Home() {
       setSellerSector("");
       setSellerCity("");
       setSellerPrice("");
-      setSellerTicketCount("");
+      setSellerTicketCount("1");
       setSellerChildTickets("");
       setSellerChildTicketDescription("");
       setSellerDescription("");
@@ -5886,6 +5899,17 @@ export default function Home() {
           color: #071633;
           font-size: 22px;
           line-height: 1;
+        }
+
+
+        .seller-price-summary { display: grid; gap: 10px; margin-top: 8px; min-width: 0; }
+        .seller-price-summary-row { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: start; gap: 12px; }
+        .seller-price-summary-row > :first-child { min-width: 0; overflow-wrap: anywhere; }
+        .seller-price-summary-row > :last-child { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+        @media (max-width: 760px) {
+          .market-modal .market-field { min-width: 0; }
+          .market-modal .seller-price-summary { font-size: 14px; line-height: 1.45; }
+          .market-modal { scroll-padding-block: 16px; }
         }
 
         .market-form {
@@ -11847,7 +11871,7 @@ export default function Home() {
                           </div>
 
                           {competition && <div className="psv2-ticket-competition">{competition}</div>}
-                          <div className="psv2-ticket-date">{dateOpen ? labels.dateOpen : offer.date}</div>
+                          <div className="psv2-ticket-date">{dateOpen ? labels.dateOpen : <OfferSchedule offer={offer} language={language} />}</div>
                           <div className="psv2-ticket-stadium">{offer.stadium}{offer.city ? ` · ${offer.city}` : ""}</div>
                           <a href={matchPath(offer.home, offer.away, offer.date)} onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()} style={{ color: "inherit", textDecoration: "underline" }}>Ver partido</a>
 
@@ -12152,10 +12176,10 @@ export default function Home() {
 
               <div className="psv2-social-grid">
                 <a
-                  href="https://www.facebook.com/"
+                  href="https://www.facebook.com/profile.php?id=61594079054594"
                   onClick={(event) => {
                     event.preventDefault();
-                    window.open("https://www.facebook.com/", "_blank", "noopener,noreferrer");
+                    window.open("https://www.facebook.com/profile.php?id=61594079054594", "_blank", "noopener,noreferrer");
                   }}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -12182,10 +12206,10 @@ export default function Home() {
                 </a>
 
                 <a
-                  href="https://www.tiktok.com/"
+                  href="https://www.tiktok.com/@pasespain"
                   onClick={(event) => {
                     event.preventDefault();
-                    window.open("https://www.tiktok.com/", "_blank", "noopener,noreferrer");
+                    window.open("https://www.tiktok.com/@pasespain", "_blank", "noopener,noreferrer");
                   }}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -12926,7 +12950,7 @@ export default function Home() {
               <div className="social-links-grid">
               <a
                 className="social-app-button social-facebook"
-                href="https://www.facebook.com/"
+                href="https://www.facebook.com/profile.php?id=61594079054594"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Facebook"
@@ -12976,7 +13000,7 @@ export default function Home() {
 
               <a
                 className="social-app-button social-tiktok"
-                href="https://www.tiktok.com/"
+                href="https://www.tiktok.com/@pasespain"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="TikTok"
@@ -13216,7 +13240,7 @@ export default function Home() {
                               {sellerDetailValue(offer.details, "Wettbewerb") && (
                                 <b>{sellerDetailValue(offer.details, "Wettbewerb")}</b>
                               )}
-                              <span>{offer.date}</span>
+                              <OfferSchedule offer={offer} language={language} />
                               <span>{offer.stadium}</span>
                               <a href={matchPath(offer.home, offer.away, offer.date)} onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>Ver partido</a>
                             </div>
@@ -13631,7 +13655,7 @@ export default function Home() {
                             <div style={{ fontSize: "13px", marginTop: "5px" }}>
                               {order.ticket_available
                                 ? (language === "de" ? "Ticket verfügbar ✓" : language === "en" ? "Ticket available ✓" : language === "ca" ? "Entrada disponible ✓" : "Entrada disponible ✓")
-                                : order.status === "paid_waiting_ticket"
+                                : (order.status === "paid_waiting_ticket" || (order.status === "paid" && !order.ticket_available))
                                   ? (language === "de" ? "Bezahlt – Verkäufer übermittelt das Ticket" : language === "en" ? "Paid – seller is sending the ticket" : language === "ca" ? "Pagat – el venedor enviarà l'entrada" : "Pagado – el vendedor enviará la entrada")
                                   : order.status}
                             </div>
@@ -14500,15 +14524,15 @@ export default function Home() {
                           <strong>{order.home} – {order.away}</strong>
                           <div style={{ fontSize: "13px", opacity: .8, marginTop: "4px" }}>{order.match_date} · {order.stadium}</div>
                           <div style={{ fontSize: "13px", marginTop: "5px" }}>
-                            {order.status === "paid_waiting_ticket"
+                            {(order.status === "paid_waiting_ticket" || (order.status === "paid" && !order.ticket_available))
                               ? (language === "de" ? "Bezahlt – Ticket jetzt übermitteln" : "Paid – send ticket now")
-                              : order.status === "ticket_sent"
+                              : (order.status === "ticket_sent" || (order.status === "paid" && order.ticket_available))
                                 ? (language === "de" ? "Ticket übermittelt – Auszahlung wird vorbereitet" : "Ticket sent – payout pending")
                                 : order.status === "paid_out"
                                   ? (language === "de" ? "Ausbezahlt ✓" : "Paid out ✓")
                                   : order.status}
                           </div>
-                          {order.status === "paid_waiting_ticket" && (
+                          {(order.status === "paid_waiting_ticket" || (order.status === "paid" && !order.ticket_available)) && (
                             <label className="market-primary-button" style={{ marginTop: "10px", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: ticketUploadOrderId === order.id ? "wait" : "pointer" }}>
                               {ticketUploadOrderId === order.id
                                 ? (language === "de" ? "Ticket wird hochgeladen …" : "Uploading ticket …")
@@ -14674,6 +14698,11 @@ export default function Home() {
                   onSubmit={
                     handleSellerSubmit
                   }
+                  noValidate
+                  onInput={event => {
+                    if (event.target instanceof HTMLElement) event.target.removeAttribute("aria-invalid");
+                    setSellerPublishError("");
+                  }}
                 >
                   <div className="market-form-grid">
                     <div className="market-field">
@@ -14977,18 +15006,17 @@ export default function Home() {
                               : "Precio de venta por entrada en €"}
                       </label>
                       <input
+                        id="seller-ticket-price"
+                        type="text"
                         inputMode="decimal"
                         value={
                           sellerPrice
                         }
-                        onChange={(
-                          event
-                        ) =>
-                          setSellerPrice(
-                            event.target.value
-                          )
-                        }
-                        placeholder=""
+                        onChange={(event) => {
+                          setSellerPrice(event.target.value);
+                          setSellerPublishError("");
+                        }}
+                        placeholder="100,00"
                         required
                       />
                     </div>
@@ -15054,8 +15082,8 @@ export default function Home() {
                             : "Resumen del precio"}
                     </label>
 
-                    <div style={{ display: "grid", gap: "6px", marginTop: "8px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "16px" }}>
+                    <div className="seller-price-summary">
+                      <div className="seller-price-summary-row">
                         <span>
                           {language === "de"
                             ? "Ticketpreis"
@@ -15068,7 +15096,7 @@ export default function Home() {
                         <strong>{sellerOfferTotal.toFixed(2)} €</strong>
                       </div>
 
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", opacity: .8 }}>
+                      <div className="seller-price-summary-row" style={{ opacity: .8 }}>
                         <span>
                           {language === "de"
                             ? "PaseSpain Verkäufer-Service 10 %"
@@ -15081,7 +15109,7 @@ export default function Home() {
                         <span>- {sellerServiceFee.toFixed(2)} €</span>
                       </div>
 
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", paddingTop: "6px", borderTop: "1px solid rgba(255,255,255,.18)" }}>
+                      <div className="seller-price-summary-row" style={{ paddingTop: "6px", borderTop: "1px solid rgba(255,255,255,.18)" }}>
                         <span>
                           {language === "de"
                             ? "Deine Auszahlung"
@@ -15192,7 +15220,7 @@ export default function Home() {
 
                   {
                     sellerPublishError && (
-                      <p className="market-error">
+                      <p className="market-error" role="alert">
                         {sellerPublishError}
                       </p>
                     )

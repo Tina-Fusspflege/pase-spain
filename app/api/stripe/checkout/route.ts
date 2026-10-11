@@ -10,6 +10,7 @@ type TicketOffer = {
   stadium: string;
   city: string;
   price_eur: number;
+  quantity?: number | null;
   details: string | null;
   status: string;
   reserved_by: string | null;
@@ -90,6 +91,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const profileResponse = await fetch(
+      `${supabaseUrl}/rest/v1/buyer_profiles?user_id=eq.${encodeURIComponent(buyerId)}&select=user_id&limit=1`,
+      { headers: { apikey: supabaseServiceRoleKey, Authorization: `Bearer ${supabaseServiceRoleKey}` }, cache: "no-store" }
+    );
+    if (!profileResponse.ok) throw new Error("Käuferprofil konnte nicht geprüft werden.");
+    const profiles = await profileResponse.json();
+    if (!Array.isArray(profiles) || !profiles.length) {
+      return NextResponse.json({ error: "Ein Käuferkonto ist erforderlich." }, { status: 403 });
+    }
+
     const body: unknown = await request.json().catch(() => null);
 
     const rawOfferIds: unknown[] =
@@ -111,7 +122,7 @@ export async function POST(request: NextRequest) {
       )
     );
 
-    if (!offerIds.length) {
+    if (!offerIds.length || offerIds.length > 20 || offerIds.some(id => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) {
       return NextResponse.json(
         { error: "Keine gültigen Tickets ausgewählt." },
         { status: 400 }
@@ -172,7 +183,7 @@ export async function POST(request: NextRequest) {
     const offersResponse = await fetch(
       `${supabaseUrl}/rest/v1/ticket_offers?id=in.(${encodeURIComponent(
         encodedIds
-      )})&select=id,seller_id,home,away,match_date,stadium,city,price_eur,details,status,reserved_by,reserved_until`,
+      )})&select=id,seller_id,home,away,match_date,stadium,city,price_eur,quantity,details,status,reserved_by,reserved_until`,
       {
         headers: {
           apikey: supabaseServiceRoleKey,
@@ -200,6 +211,9 @@ export async function POST(request: NextRequest) {
         throw new Error("Ticketreservierung ist ungültig.");
       }
 
+      if (offer.seller_id === buyerId) throw new Error("Eigene Tickets können nicht gekauft werden.");
+      const count = Number(offer.details?.match(/Anzahl Tickets:\s*(\d+)/i)?.[1] || offer.quantity || 1);
+      if (!Number.isSafeInteger(count) || count < 1) throw new Error("Ungültige Ticketanzahl.");
       const price = Number(offer.price_eur);
 
       if (!Number.isFinite(price) || price <= 0) {
@@ -207,13 +221,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const origin =
-      request.headers.get("origin") ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://pasespain.es";
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://pasespain.es";
 
     const ticketSubtotal = offers.reduce(
-      (sum, offer) => sum + Number(offer.price_eur),
+      (sum, offer) => sum + Number(offer.price_eur) * Number(offer.details?.match(/Anzahl Tickets:\s*(\d+)/i)?.[1] || offer.quantity || 1),
       0
     );
 
@@ -221,7 +232,7 @@ export async function POST(request: NextRequest) {
       Math.round(ticketSubtotal * 0.1 * 100);
 
     const ticketLineItems = offers.map(offer => ({
-      quantity: 1,
+      quantity: Number(offer.details?.match(/Anzahl Tickets:\s*(\d+)/i)?.[1] || offer.quantity || 1),
       price_data: {
         currency: "eur",
         unit_amount: Math.round(

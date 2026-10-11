@@ -15,10 +15,11 @@ export default async function MatchesPage() {
     <Link href="/">PaseSpain</Link>
     <h1>Partidos de fútbol en España</h1>
     <p>Consulta los partidos anunciados y sus entradas disponibles.</p>
-    <ul>{matches.map(match => <li key={match.slug}>
+    <ul>{matches.filter(match => match.verification).map(match => <li key={match.slug}>
       <h2><Link href={`/partido/${match.slug}`}>{match.home} – {match.away}</Link></h2>
       <p>{matchDate(match.match_date)} · {match.stadium} · {match.city}</p>
-      <p>{match.offers.length ? `${match.offers.length} anuncios disponibles` : "Sin entradas disponibles"}</p>
+      <p>{match.verification?.provisional ? "Fecha prevista; horario pendiente" : `Hora local: ${match.verification?.kickoff}`}</p>
+      <p>{match.offersUnavailable ? "Disponibilidad temporalmente no disponible" : match.offers.length ? `${match.offers.length} anuncios disponibles` : "Sin entradas disponibles"}</p>
     </li>)}</ul>
   </main>;
 }

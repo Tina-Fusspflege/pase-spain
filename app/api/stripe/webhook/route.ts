@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { createHash } from "node:crypto";
 import { stripe } from "../../../lib/stripe";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
@@ -12,6 +13,8 @@ type TicketOffer = {
   match_date: string;
   stadium: string;
   price_eur: number;
+  quantity?: number | null;
+  details?: string | null;
   status: string;
   reserved_by: string | null;
 };
@@ -59,7 +62,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (event.type !== "checkout.session.completed") {
+    if (event.type !== "checkout.session.completed" && event.type !== "checkout.session.async_payment_succeeded") {
       return NextResponse.json({ received: true });
     }
 
@@ -90,6 +93,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let mailFailed = false;
     for (const offerId of offerIds) {
       const existingResponse = await fetch(
         `${supabaseUrl}/rest/v1/orders?offer_id=eq.${encodeURIComponent(
@@ -114,18 +118,13 @@ export async function POST(request: NextRequest) {
 
       const existingOrders = await existingResponse.json();
 
-      // Stripe kann Webhooks mehrfach senden.
-      if (
-        Array.isArray(existingOrders) &&
-        existingOrders.length > 0
-      ) {
-        continue;
-      }
+      // Existing orders must still resume unfinished notifications.
+      const orderExists = Array.isArray(existingOrders) && existingOrders.length > 0;
 
       const offerResponse = await fetch(
         `${supabaseUrl}/rest/v1/ticket_offers?id=eq.${encodeURIComponent(
           offerId
-        )}&select=id,seller_id,home,away,match_date,stadium,price_eur,status,reserved_by`,
+        )}&select=id,seller_id,home,away,match_date,stadium,price_eur,quantity,details,status,reserved_by`,
         {
           headers: {
             apikey: serviceKey,
@@ -160,13 +159,15 @@ export async function POST(request: NextRequest) {
         offer.status === "available" &&
         offer.reserved_by === null;
 
-      if (!normalReservation && !recoverOldPaidPurchase) {
+      const completedPurchase = orderExists && offer.status === "sold" && offer.reserved_by === buyerId;
+      if (!normalReservation && !recoverOldPaidPurchase && !completedPurchase) {
         throw new Error(
           `Ticket ${offerId} kann diesem Kauf nicht zugeordnet werden.`
         );
       }
 
-      const ticketPrice = Number(offer.price_eur);
+      const ticketQuantity = Number(offer.details?.match(/Anzahl Tickets:\s*(\d+)/i)?.[1] || offer.quantity || 1);
+      const ticketPrice = Number(offer.price_eur) * ticketQuantity;
 
       if (
         !Number.isFinite(ticketPrice) ||
@@ -187,72 +188,26 @@ export async function POST(request: NextRequest) {
       const sellerFee =
         Math.round((ticketPrice - sellerPayout) * 100) / 100;
 
-      // Bestellung speichern
+      // The database locks the offer and commits order + sold status together.
       const orderResponse = await fetch(
-        `${supabaseUrl}/rest/v1/orders`,
+        `${supabaseUrl}/rest/v1/rpc/complete_ticket_order`,
         {
           method: "POST",
           headers: {
             apikey: serviceKey,
             Authorization: `Bearer ${serviceKey}`,
             "Content-Type": "application/json",
-            Prefer: "return=representation",
           },
           body: JSON.stringify({
-            buyer_id: buyerId,
-            seller_id: offer.seller_id,
-            offer_id: offer.id,
-            home: offer.home,
-            away: offer.away,
-            match_date: offer.match_date,
-            stadium: offer.stadium,
-            quantity: 1,
-            ticket_price_eur: ticketPrice,
-            buyer_total_eur: buyerTotal,
-            seller_payout_eur: sellerPayout,
-            status: "paid",
-            ticket_available: false,
+            p_offer_id: offer.id,
+            p_buyer_id: buyerId,
+            p_session_id: session.id,
           }),
           cache: "no-store",
         }
       );
-
-      if (!orderResponse.ok) {
-        const errorText = await orderResponse.text();
-        console.error("Order-Fehler:", errorText);
-
-        throw new Error(
-          "Bestellung konnte nicht gespeichert werden."
-        );
-      }
-
-      // Ticket als verkauft markieren
-      const soldResponse = await fetch(
-        `${supabaseUrl}/rest/v1/ticket_offers?id=eq.${encodeURIComponent(
-          offerId
-        )}`,
-        {
-          method: "PATCH",
-          headers: {
-            apikey: serviceKey,
-            Authorization: `Bearer ${serviceKey}`,
-            "Content-Type": "application/json",
-            Prefer: "return=minimal",
-          },
-          body: JSON.stringify({
-            status: "sold",
-            reserved_by: buyerId,
-            reserved_until: null,
-          }),
-          cache: "no-store",
-        }
-      );
-
-      if (!soldResponse.ok) {
-        throw new Error(
-          "Ticket konnte nicht als verkauft gespeichert werden."
-        );
-      }
+      if (!orderResponse.ok) throw new Error("Bestellung konnte nicht gespeichert werden.");
+      const orderId = await orderResponse.json() as string;
 
       /*
        * Käuferdaten laden
@@ -278,12 +233,11 @@ export async function POST(request: NextRequest) {
             (await buyerProfileResponse.json()) as BuyerProfile[];
 
           buyerProfile = profiles[0] ?? {};
+        } else {
+          throw new Error("Käuferprofil konnte nicht geladen werden.");
         }
       } catch (error) {
-        console.error(
-          "Käuferprofil konnte nicht geladen werden:",
-          error
-        );
+        throw new Error("Käuferprofil konnte nicht geladen werden; Benachrichtigung wird erneut versucht.", { cause: error });
       }
 
       /*
@@ -349,8 +303,8 @@ export async function POST(request: NextRequest) {
        */
       if (resendApiKey && sellerEmail) {
         try {
-          const emailResponse = await fetch(
-            RESEND_API_URL,
+          const emailResponse = await sendNotification(
+            session.id, offerId, "seller",
             {
               method: "POST",
               headers: {
@@ -358,7 +312,7 @@ export async function POST(request: NextRequest) {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                from: "PaseSpain <tickets@pasespain.es>",
+                from: process.env.RESEND_FROM_EMAIL || "PaseSpain <tickets@pasespain.es>",
                 to: [sellerEmail],
                 subject: `Ticket verkauft: ${offer.home} – ${offer.away}`,
                 html: `
@@ -370,6 +324,7 @@ export async function POST(request: NextRequest) {
                       erfolgreich gekauft und bezahlt.
                     </p>
 
+                    <p>Bestellnummer: ${escapeHtml(orderId)}</p>
                     <h3>Spiel</h3>
 
                     <p>
@@ -415,6 +370,7 @@ export async function POST(request: NextRequest) {
           );
 
           if (!emailResponse.ok) {
+            mailFailed = true;
             console.error(
               "Resend Verkäufer-Mail fehlgeschlagen:",
               await emailResponse.text()
@@ -425,12 +381,14 @@ export async function POST(request: NextRequest) {
             );
           }
         } catch (emailError) {
+          mailFailed = true;
           console.error(
             "Verkäufer-Mail konnte nicht gesendet werden:",
             emailError
           );
         }
       } else {
+        mailFailed = true;
         if (!resendApiKey) {
           console.error(
             "RESEND_API_KEY fehlt – Verkäufer-Mail nicht gesendet."
@@ -450,8 +408,8 @@ export async function POST(request: NextRequest) {
        */
       if (resendApiKey && buyerEmail) {
         try {
-          const buyerEmailResponse = await fetch(
-            RESEND_API_URL,
+          const buyerEmailResponse = await sendNotification(
+            session.id, offerId, "buyer",
             {
               method: "POST",
               headers: {
@@ -459,7 +417,7 @@ export async function POST(request: NextRequest) {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                from: "PaseSpain <tickets@pasespain.es>",
+                from: process.env.RESEND_FROM_EMAIL || "PaseSpain <tickets@pasespain.es>",
                 to: [buyerEmail],
                 subject: `Kauf bestätigt: ${offer.home} – ${offer.away}`,
                 html: `
@@ -477,6 +435,7 @@ export async function POST(request: NextRequest) {
                       Hier findest du die Zusammenfassung deines Kaufs.
                     </p>
 
+                    <p>Bestellnummer: ${escapeHtml(orderId)}</p>
                     <h3>Dein Ticket</h3>
 
                     <p>
@@ -500,9 +459,8 @@ export async function POST(request: NextRequest) {
                     <h3>Wie geht es weiter?</h3>
 
                     <p>
-                      Der Verkäufer wurde über deinen Kauf informiert
-                      und ist für die Übermittlung des gekauften Tickets
-                      verantwortlich.
+                      Du findest deinen Kauf in deinem Käuferkonto auf PaseSpain.
+                      Der Verkäufer ist für die Bereitstellung des gekauften Tickets verantwortlich.
                     </p>
 
                     <p>
@@ -519,6 +477,7 @@ export async function POST(request: NextRequest) {
           );
 
           if (!buyerEmailResponse.ok) {
+            mailFailed = true;
             console.error(
               "Resend Käufer-Mail fehlgeschlagen:",
               await buyerEmailResponse.text()
@@ -529,18 +488,21 @@ export async function POST(request: NextRequest) {
             );
           }
         } catch (emailError) {
+          mailFailed = true;
           console.error(
             "Käufer-Mail konnte nicht gesendet werden:",
             emailError
           );
         }
-      } else if (!buyerEmail) {
+      } else {
+        mailFailed = true;
         console.error(
           `Keine Käufer-E-Mail für ${buyerId} gefunden.`
         );
       }
     }
 
+    if (mailFailed) throw new Error("Kauf gespeichert; Benachrichtigung ausstehend. Stripe soll die Zustellung erneut versuchen.");
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error(
@@ -558,6 +520,25 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Stripe metadata persists beyond Resend's 24-hour idempotency window.
+// Store provider acceptance, not inbox delivery. No recipient data is stored.
+async function sendNotification(sessionId: string, offerId: string, role: "seller" | "buyer", init: RequestInit) {
+  const marker = `mail_${role}_${createHash("sha256").update(offerId).digest("hex").slice(0, 24)}`;
+  const current = await stripe.checkout.sessions.retrieve(sessionId);
+  if (current.metadata?.[marker]) return new Response(null, { status: 200 });
+  const response = await fetch(RESEND_API_URL, {
+    ...init,
+    headers: { ...init.headers, "Idempotency-Key": `${sessionId}/${offerId}/${role}` },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (response.ok) {
+    const result = await response.clone().json() as { id?: string };
+    if (!result.id) throw new Error("Mailanbieter hat keine Versand-ID bestätigt.");
+    await stripe.checkout.sessions.update(sessionId, { metadata: { [marker]: result.id } });
+  }
+  return response;
 }
 
 function escapeHtml(value: string) {
