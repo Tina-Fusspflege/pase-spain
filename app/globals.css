@@ -1981,3 +1981,11 @@ a {
     drop-shadow(0 10px 14px rgba(7,24,52,0.16))
     drop-shadow(0 20px 30px rgba(7,24,52,0.08));
 }
+.fixture-page { min-height: 100vh; padding: 32px max(24px, calc((100vw - 880px) / 2)); background: #081832; color: #fff; }
+.fixture-page h1 { font-size: clamp(1.7rem, 4vw, 2.6rem); margin: 24px 0; line-height: 1.2; }
+.fixture-page h2 { font-size: 1.3rem; margin: 20px 0 12px; }
+.fixture-page p { line-height: 1.7; margin: 16px 0; }
+.fixture-page a { color: #a6d7ff; text-decoration: underline; }
+.fixture-page a:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+.fixture-page ul { list-style: none; padding: 0; }
+.fixture-page li { border: 1px solid #53647a; border-radius: 16px; padding: 20px; margin: 16px 0; }

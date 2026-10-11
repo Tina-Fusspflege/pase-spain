@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://pasespain.es/sitemap.xml",
+    sitemap: "https://www.pasespain.es/sitemap.xml",
   };
 }
