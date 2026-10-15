@@ -1,3 +1,4 @@
+import { readAssistantRequest } from "../../../lib/assistant-request";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -59,12 +60,14 @@ BOUNDARIES
 `;
 
 export async function POST(request: Request) {
+  const rawBody = await readAssistantRequest(request);
+  if (rawBody instanceof Response) return rawBody;
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return new NextResponse("OPENAI_API_KEY fehlt in Vercel.", { status: 500 });
   }
 
-  const sdp = await request.text();
+  const sdp = rawBody;
   if (!sdp.trim()) {
     return new NextResponse("SDP fehlt.", { status: 400 });
   }
@@ -139,6 +142,7 @@ export async function POST(request: Request) {
     },
     body: form,
     cache: "no-store",
+    signal: AbortSignal.timeout(20000),
   });
 
   const body = await response.text();

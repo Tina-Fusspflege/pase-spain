@@ -1,4 +1,5 @@
 import "server-only";
+import { TEST_OFFER_IDS } from "./test-offers";
 import { cache } from "react";
 import { matchSlug, teamName } from "./match-url";
 import { fixtureReviews, verifiedFixtures, type VerifiedFixture } from "./verified-fixtures";
@@ -39,6 +40,7 @@ export const getMatches = cache(async (): Promise<Match[]> => {
       if (page.length < 1000) break;
     }
     for (const row of rows) {
+      if (TEST_OFFER_IDS.has(row.id)) continue;
       // 2099 is the existing application's placeholder for an unconfirmed date.
       if (!row.home?.trim() || !row.away?.trim() || !/^\d{4}-\d{2}-\d{2}T/.test(row.match_date) || row.match_date.startsWith("2099-") || Number.isNaN(Date.parse(row.match_date))) continue;
       const slug = matchSlug(row.home, row.away, row.match_date);

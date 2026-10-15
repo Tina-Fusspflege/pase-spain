@@ -1,3 +1,4 @@
+import { readAssistantRequest } from "../../../lib/assistant-request";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -15,12 +16,14 @@ const languageNames = {
 } as const;
 
 export async function POST(request: Request) {
+  const rawBody = await readAssistantRequest(request);
+  if (rawBody instanceof Response) return rawBody;
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "OPENAI_API_KEY fehlt in Vercel." }, { status: 500 });
   }
 
-  const body = await request.json().catch(() => null) as RequestBody | null;
+  const body = await Promise.resolve().then(() => JSON.parse(rawBody)).catch(() => null) as RequestBody | null;
   const question = String(body?.question || "").trim();
   const language = body?.language && languageNames[body.language] ? body.language : "es";
 
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
       max_output_tokens: 450,
     }),
     cache: "no-store",
+    signal: AbortSignal.timeout(20000),
   });
 
   const data = await response.json().catch(() => null) as any;

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { TEST_OFFER_IDS } from "./lib/test-offers";
 import { matchPath, matchSlug } from "./lib/match-url";
 import { fixtureReviews, verifiedFixtures } from "./lib/verified-fixtures";
 import { useEffect, useMemo, useState } from "react";
@@ -2809,7 +2810,7 @@ export default function Home() {
       }
 
       setSellerOffers(
-        rows.map(
+        rows.filter(row => !TEST_OFFER_IDS.has(row.id) || row.id === offerId).map(
           rowToTicketOffer
         )
       );
@@ -11873,7 +11874,7 @@ export default function Home() {
                           {competition && <div className="psv2-ticket-competition">{competition}</div>}
                           <div className="psv2-ticket-date">{dateOpen ? labels.dateOpen : <OfferSchedule offer={offer} language={language} />}</div>
                           <div className="psv2-ticket-stadium">{offer.stadium}{offer.city ? ` · ${offer.city}` : ""}</div>
-                          <a href={matchPath(offer.home, offer.away, offer.date)} onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()} style={{ color: "inherit", textDecoration: "underline" }}>Ver partido</a>
+                          <a href={matchPath(offer.home, offer.away, offer.date)} onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()} style={{ color: "inherit", textDecoration: "underline" }}>{language === "de" ? "Spiel ansehen" : language === "en" ? "View match" : language === "ca" ? "Veure partit" : "Ver partido"}</a>
 
                           <div className="psv2-ticket-facts-grid">
                             {tribune && <div><span>{labels.tribune}</span><b>{tribune}</b></div>}
@@ -11895,7 +11896,7 @@ export default function Home() {
                             {Array.from({ length: 24 }, (_, barIndex) => <i key={barIndex} />)}
                           </div>
                           <strong>{unitPriceLabel}</strong>
-                          <small>pro Ticket</small>
+                          <small>{language === "de" ? "pro Ticket" : language === "en" ? "per ticket" : language === "ca" ? "per entrada" : "por entrada"}</small>
                         </div>
                       </div>
 
@@ -13242,7 +13243,7 @@ export default function Home() {
                               )}
                               <OfferSchedule offer={offer} language={language} />
                               <span>{offer.stadium}</span>
-                              <a href={matchPath(offer.home, offer.away, offer.date)} onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>Ver partido</a>
+                              <a href={matchPath(offer.home, offer.away, offer.date)} onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>{language === "de" ? "Spiel ansehen" : language === "en" ? "View match" : language === "ca" ? "Veure partit" : "Ver partido"}</a>
                             </div>
 
                             <div className="pases-ticket-facts">
@@ -13260,7 +13261,7 @@ export default function Home() {
                             <span>PASESPAIN</span>
                             <div className="pases-ticket-barcode-new" aria-hidden="true" />
                             <strong>{offer.price}</strong>
-                            <small>pro Ticket</small>
+                            <small>{language === "de" ? "pro Ticket" : language === "en" ? "per ticket" : language === "ca" ? "per entrada" : "por entrada"}</small>
                           </div>
                         </div>
 

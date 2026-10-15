@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { TEST_OFFER_IDS } from "../../lib/test-offers";
+import { offerFacts } from "../../lib/offer-facts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -94,6 +96,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    robots: TEST_OFFER_IDS.has(id) ? { index: false, follow: false } : undefined,
     alternates: {
       canonical: url,
     },
@@ -117,6 +120,7 @@ export default async function TicketPage({ params }: TicketPageProps) {
   const ticket = await getTicket(id);
 
   if (!ticket) notFound();
+  const facts = offerFacts(ticket.details);
 
   return (
     <main
@@ -162,9 +166,9 @@ export default async function TicketPage({ params }: TicketPageProps) {
           {formatPrice(ticket.price_eur)}
         </strong>
 
-        {ticket.details ? (
-          <p style={{ marginTop: "18px", opacity: 0.82 }}>{ticket.details}</p>
-        ) : null}
+        <dl style={{marginTop:"18px"}}>{[
+          ["Zona", facts.zone], ["Sector", facts.sector], ["Fila", facts.row], ["Asiento", facts.seat], ["Cantidad", facts.quantity]
+        ].filter(([,value]) => value !== undefined).map(([label,value]) => <div key={String(label)}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
 
         <Link
           href="/"

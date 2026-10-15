@@ -1,3 +1,4 @@
+import { readAssistantRequest } from "../../../lib/assistant-request";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -44,6 +45,7 @@ async function createSpeech(text: string) {
         seed: 271828,
       }),
       cache: "no-store",
+    signal: AbortSignal.timeout(20000),
     }
   );
 
@@ -72,27 +74,19 @@ function audioResponse(audio: ArrayBuffer) {
   });
 }
 
-export async function GET() {
-  try {
-    return audioResponse(await createSpeech(TEST_TEXT));
-  } catch (error) {
-    console.error("GET /api/assistant/speech:", error);
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Unbekannter Fehler bei ElevenLabs." },
-      { status: 500 }
-    );
-  }
-}
+export async function GET() { return NextResponse.json({error:"Utiliza POST."}, {status:405,headers:{Allow:"POST"}}); }
 
 export async function POST(request: NextRequest) {
+  const rawBody = await readAssistantRequest(request);
+  if (rawBody instanceof Response) return rawBody;
   try {
-    const body = await request.json().catch(() => null);
+    const body = await Promise.resolve().then(() => JSON.parse(rawBody)).catch(() => null);
     const text = body && typeof body.text === "string" ? body.text : "";
     return audioResponse(await createSpeech(text));
   } catch (error) {
     console.error("POST /api/assistant/speech:", error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Unbekannter Fehler bei ElevenLabs." },
+      { ok: false, error: "La voz no está disponible temporalmente." },
       { status: 500 }
     );
   }
