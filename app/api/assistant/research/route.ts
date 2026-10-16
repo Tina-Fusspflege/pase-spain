@@ -1,3 +1,4 @@
+import { takeAiAllowance } from "../../../lib/ai-allowance";
 import { readAssistantRequest } from "../../../lib/assistant-request";
 import { NextResponse } from "next/server";
 
@@ -35,6 +36,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Frage ist zu lang." }, { status: 400 });
   }
 
+  const denied = await takeAiAllowance(request,"pasespain");
+  if (denied) return denied;
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {

@@ -1,3 +1,4 @@
+import { takeAiAllowance } from "../../../lib/ai-allowance";
 import { readAssistantRequest } from "../../../lib/assistant-request";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -82,6 +83,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await Promise.resolve().then(() => JSON.parse(rawBody)).catch(() => null);
     const text = body && typeof body.text === "string" ? body.text : "";
+    if (!text.trim()) return NextResponse.json({error:"Texto obligatorio."},{status:400});
+    if(text.length > 1400) return NextResponse.json({error:"Texto demasiado largo."},{status:413});
+  const denied = await takeAiAllowance(request,"pasespain");
+  if (denied) return denied;
     return audioResponse(await createSpeech(text));
   } catch (error) {
     console.error("POST /api/assistant/speech:", error);

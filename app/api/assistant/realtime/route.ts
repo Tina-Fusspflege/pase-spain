@@ -1,3 +1,4 @@
+import { takeAiAllowance } from "../../../lib/ai-allowance";
 import { readAssistantRequest } from "../../../lib/assistant-request";
 import { NextResponse } from "next/server";
 
@@ -72,6 +73,9 @@ export async function POST(request: Request) {
     return new NextResponse("SDP fehlt.", { status: 400 });
   }
 
+  if (!/^v=0\r?\n/.test(sdp)) return new NextResponse("SDP inválido.",{status:400});
+  const denied = await takeAiAllowance(request,"pasespain");
+  if (denied) return denied;
   const session = {
     type: "realtime",
     model: "gpt-realtime-2.1",
