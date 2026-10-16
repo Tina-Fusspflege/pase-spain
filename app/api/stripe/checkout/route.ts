@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "../../../lib/stripe";
+import { getStripe } from "../../../lib/stripe";
 
 type TicketOffer = {
   id: string;
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       mode: "payment",
 
       customer_email: buyerEmail,

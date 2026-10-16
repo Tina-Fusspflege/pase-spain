@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "../../../lib/stripe";
+import { getStripe } from "../../../lib/stripe";
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Bereits vorhandenes Stripe-Konto wiederverwenden
     if (profile.stripe_account_id) {
-      const existingAccount = await stripe.accounts.retrieve(
+      const existingAccount = await getStripe().accounts.retrieve(
         profile.stripe_account_id
       );
 
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Noch kein Stripe-Konto vorhanden -> neu erstellen
-    const account = await stripe.accounts.create({
+    const account = await getStripe().accounts.create({
       country: "ES",
 
       controller: {

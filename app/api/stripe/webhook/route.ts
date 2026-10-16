@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createHash } from "node:crypto";
-import { stripe } from "../../../lib/stripe";
+import { getStripe } from "../../../lib/stripe";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     let event: Stripe.Event;
 
     try {
-      event = stripe.webhooks.constructEvent(
+      event = getStripe().webhooks.constructEvent(
         rawBody,
         signature,
         webhookSecret
@@ -526,7 +526,7 @@ export async function POST(request: NextRequest) {
 // Store provider acceptance, not inbox delivery. No recipient data is stored.
 async function sendNotification(sessionId: string, offerId: string, role: "seller" | "buyer", init: RequestInit) {
   const marker = `mail_${role}_${createHash("sha256").update(offerId).digest("hex").slice(0, 24)}`;
-  const current = await stripe.checkout.sessions.retrieve(sessionId);
+  const current = await getStripe().checkout.sessions.retrieve(sessionId);
   if (current.metadata?.[marker]) return new Response(null, { status: 200 });
   const response = await fetch(RESEND_API_URL, {
     ...init,
@@ -536,7 +536,7 @@ async function sendNotification(sessionId: string, offerId: string, role: "selle
   if (response.ok) {
     const result = await response.clone().json() as { id?: string };
     if (!result.id) throw new Error("Mailanbieter hat keine Versand-ID bestätigt.");
-    await stripe.checkout.sessions.update(sessionId, { metadata: { [marker]: result.id } });
+    await getStripe().checkout.sessions.update(sessionId, { metadata: { [marker]: result.id } });
   }
   return response;
 }

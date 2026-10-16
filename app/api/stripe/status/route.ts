@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "../../../lib/stripe";
+import { getStripe } from "../../../lib/stripe";
 
 export async function GET(request: NextRequest) {
   try {
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const account = await stripe.accounts.retrieve(
+    const account = await getStripe().accounts.retrieve(
       profile.stripe_account_id
     );
 
