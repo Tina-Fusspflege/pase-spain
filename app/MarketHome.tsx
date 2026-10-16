@@ -6423,7 +6423,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           font-weight: 720;
         }
 
-        @media (max-width: 767px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .social-apps-amelia-layout {
             grid-template-columns: 1fr !important;
             gap: 9px !important;
@@ -6768,7 +6768,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
            PASESPAIN MOBILE APP – EINZIGE MOBILE REGELN
            Desktop bleibt vollständig unverändert.
            ========================================================= */
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           html, body {
             width: 100%;
             max-width: 100%;
@@ -7108,7 +7108,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           }
         }
 
-        @media (max-width: 390px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .page-shell {
             padding-left: 10px !important;
             padding-right: 10px !important;
@@ -7167,7 +7167,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           /* NUR MOBILE – Logo klar oberhalb der Social-Media-Kachel und etwas größer */
           .hero {
             height: 150px !important;
@@ -7199,7 +7199,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           }
         }
 
-        @media (max-width: 390px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .hero {
             height: 140px !important;
             min-height: 140px !important;
@@ -7216,7 +7216,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           /* NUR MOBILE – Logo weiter nach oben und etwas größer,
              Social-Media-Kachel etwas nach unten */
           .hero {
@@ -7248,7 +7248,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           }
         }
 
-        @media (max-width: 390px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .hero {
             height: 146px !important;
             min-height: 146px !important;
@@ -7269,7 +7269,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           /* NUR MOBILE – mehr Glas + 3D für obere und untere App-Buttons */
 
           .header-actions .seller-action,
@@ -7334,7 +7334,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           /* Mobile-Kopf sauber: Marke + Sprachen oben, 3 App-Kacheln darunter */
           .header {
             display: grid !important;
@@ -7413,7 +7413,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           }
         }
 
-        @media (max-width: 390px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .header-actions {
             grid-template-columns: repeat(3, 60px) !important;
             gap: 12px !important;
@@ -7443,7 +7443,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           /* NUR MOBILE – Logo größer, Social-Kachel weiter nach unten */
           .hero {
             height: 186px !important;
@@ -7470,7 +7470,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           }
         }
 
-        @media (max-width: 390px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .hero {
             height: 174px !important;
             min-height: 174px !important;
@@ -7491,7 +7491,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           /* NUR MOBILE – mehr Abstand zwischen Logo und Social-Kachel */
           .hero {
             margin-bottom: 42px !important;
@@ -7548,7 +7548,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           }
         }
 
-        @media (max-width: 390px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .hero {
             margin-bottom: 38px !important;
           }
@@ -7559,7 +7559,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           /* NUR MOBILE – untere Buttons deutlich transparenteres Glas */
           .mobile-bottom-nav button {
             background:
@@ -7605,7 +7605,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           display: none;
         }
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           /* Alte Mobile-/Desktop-Oberfläche vollständig ausblenden */
           .page-shell.glass-shell,
           .mobile-bottom-nav,
@@ -9224,7 +9224,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
            - Inhalt bleibt immer oberhalb der Bottom-Navigation
            - kurze und hohe Handys passen sich automatisch an
            ========================================================= */
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-app {
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -9385,7 +9385,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
         /* sehr kurze Handys: Header kompakter, Inhalt gewinnt Hoehe */
-        @media (max-width: 760px) and (max-height: 700px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-app {
             --nav-height: 78px;
             --content-top: 198px;
@@ -9414,7 +9414,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
         /* schmale Handys: Texte/Abstaende bleiben innerhalb des Screens */
-        @media (max-width: 380px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-language {
             transform: scale(.88);
             transform-origin: top right;
@@ -9436,7 +9436,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-subtitle {
             padding: 9px 14px !important;
             border-radius: 16px !important;
@@ -9472,7 +9472,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-subtitle {
             top: calc(var(--content-top) - 18px) !important;
             width: min(88vw, 390px) !important;
@@ -9492,7 +9492,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           /* Logo auf dem Handy deutlich praesenter */
           .psv2-mobile-logo {
             top: calc(58px + var(--safe-top)) !important;
@@ -9565,7 +9565,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-logo {
             width: clamp(220px, 62vw, 270px) !important;
           }
@@ -9644,14 +9644,14 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-more-page {
             top: calc(var(--content-top) - 24px) !important;
           }
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-subtitle {
             top: calc(198px + var(--safe-top)) !important;
             width: min(92vw, 430px) !important;
@@ -9736,7 +9736,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           flex: 0 0 auto;
         }
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .market-form-two {
             grid-template-columns: 1fr;
           }
@@ -9861,7 +9861,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         }
 
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-subtitle {
             top: calc(230px + var(--safe-top)) !important;
             margin-top: 0 !important;
@@ -9970,7 +9970,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           color: rgba(7,22,51,.72);
         }
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-account {
             display: inline-flex !important;
             position: absolute;
@@ -10175,7 +10175,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           cursor: pointer;
         }
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .market-modal-backdrop {
             z-index: 20000 !important;
             align-items: flex-start !important;
@@ -10322,7 +10322,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
            1) Untertitel klar sichtbar
            2) Konto/Registrieren-Fenster sicher klickbar
            ========================================================= */
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-subtitle {
             top: calc(220px + var(--safe-top)) !important;
             width: min(92vw, 420px) !important;
@@ -11194,7 +11194,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           background: transparent;
         }
 
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .social-fairplay-stack {
             display: contents;
           }
@@ -14020,7 +14020,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
       `}</style>
 
       <style>{`
-        @media (max-width: 767px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-subtitle {
             top: calc(170px + env(safe-area-inset-top, 0px)) !important;
             width: min(94vw, 440px) !important;
@@ -14102,7 +14102,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
       />
 
       <style>{`
-        @media (max-width: 767px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .psv2-mobile-logo {
             width: clamp(270px, 75vw, 320px) !important;
             max-width: 320px !important;
@@ -14146,7 +14146,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
         .psv2-amelia-help { width: 100%; color: inherit; text-align: left; cursor: pointer; font-family: inherit; }
         .psv2-info-card-mic { background: linear-gradient(145deg, rgba(49,123,255,.92), rgba(26,175,210,.86)) !important; color: #fff !important; box-shadow: 0 8px 18px rgba(26,91,190,.32), inset 0 1px 0 rgba(255,255,255,.48); }
         .psv2-info-card-mic svg { width: 23px; height: 23px; }
-        @media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+        @media (width: 0px) {
           .amelia-home-card, .amelia-home-button { min-height: 255px; }
           .social-apps-only .social-links-grid { grid-template-columns: repeat(5, 39px) !important; grid-auto-rows: 39px !important; gap: 7px !important; }
         }
@@ -14356,6 +14356,51 @@ html body:has(.redesign-preview){background:#f0f3f6!important}
 .redesign-preview .ps-voice-primary.active{background:linear-gradient(135deg,#aa644c,#8e4841)!important}
 .redesign-preview .ps-voice-error{color:#ad3939!important;background:#fff0ed!important;border-radius:10px!important;padding:10px!important}
 .redesign-preview .fairplay-official-links a{color:#96533f!important}
+`}</style><style>{`
+/* Einheitliches Mobil-Layout ohne alte Touch-App-Überlagerungen */
+@media(max-width:760px){
+html body:has(.redesign-preview){overflow-x:hidden!important}
+.redesign-preview #mobile-start.header{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;position:relative!important;inset:auto!important;transform:none!important;width:calc(100% - 28px)!important;max-width:560px!important;margin:14px auto 0!important;padding:12px!important;gap:10px!important;min-height:0!important;height:auto!important;z-index:2!important}
+.redesign-preview #mobile-start .brand-area{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;position:static!important;transform:none!important;margin:0!important;padding:0!important;gap:10px!important;width:auto!important}
+.redesign-preview #mobile-start .preview-original-logo{width:48px!important;height:44px!important}
+.redesign-preview #mobile-start .brand-text{font-size:23px!important;line-height:1.1!important;position:static!important;transform:none!important}
+.redesign-preview #mobile-start .brand-window-handwriting{font-size:13px!important;margin:3px 0 0!important}
+.redesign-preview #mobile-start .header-right{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:space-between!important;position:static!important;inset:auto!important;transform:none!important;width:100%!important;flex-basis:auto!important;gap:8px!important;margin:0!important}
+.redesign-preview #mobile-start .language-switch{display:flex!important;position:static!important;inset:auto!important;transform:none!important;translate:none!important;margin:0!important;padding:6px!important;gap:6px!important;width:auto!important;min-width:0!important;max-width:none!important;flex-shrink:0!important}
+.redesign-preview #mobile-start .language-flag{width:25px!important;height:18px!important;min-width:25px!important;position:relative!important;inset:auto!important;transform:none!important;margin:0!important}
+.redesign-preview #mobile-start .header-actions{display:flex!important;position:static!important;transform:none!important;gap:6px!important;margin:0!important}
+.redesign-preview #mobile-start .header-actions button{min-width:0!important;width:auto!important;height:34px!important;padding:7px 9px!important;font-size:11px!important;transform:none!important}
+.redesign-preview #mobile-start .header-action-label{font-size:11px!important;line-height:16px!important}
+.redesign-preview #mobile-start .cart-count{position:static!important;transform:none!important;min-width:16px!important;width:16px!important;height:16px!important;line-height:16px!important;font-size:10px!important;margin-left:4px!important}
+.redesign-preview .hero-category-zone{display:block!important;position:relative!important;inset:auto!important;transform:none!important;margin-top:-128px!important;padding:164px 20px 28px!important;min-height:0!important;height:auto!important;background-position:center!important}
+.redesign-preview .hero,.redesign-preview .hero-copy{display:block!important;visibility:visible!important;opacity:1!important;position:static!important;inset:auto!important;transform:none!important;height:auto!important;min-height:0!important;width:100%!important;margin:0!important;padding:0!important}
+.redesign-preview .hero h1{display:block!important;visibility:visible!important;opacity:1!important;font-size:clamp(29px,8vw,39px)!important;line-height:1.08!important;letter-spacing:-1px!important;margin:0 0 24px!important;padding:0!important;transform:none!important;position:static!important;max-width:100%!important;color:#fff!important}
+.redesign-preview .hero h1 .gradient-text{display:inline!important;visibility:visible!important;opacity:1!important}
+.redesign-preview .preview-search{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:10px!important;padding:12px!important;width:100%!important;max-width:none!important;margin:0!important}
+.redesign-preview .preview-search label{width:100%!important}.redesign-preview .preview-search label span{font-size:10px!important}.redesign-preview .preview-search input{font-size:16px!important;width:100%!important;min-width:0!important}.redesign-preview .preview-search button{min-height:38px!important;width:100%!important;font-size:13px!important;padding:9px 12px!important}
+.redesign-preview .preview-amelia-float{padding:5px!important;bottom:16px!important;right:12px!important;width:52px!important;height:52px!important;gap:0!important}.redesign-preview .preview-amelia-float img{width:40px!important;height:40px!important}.redesign-preview .preview-amelia-float span{display:none!important}
+.redesign-preview .panel-heading{gap:10px!important}.redesign-preview .panel-heading h2{font-size:25px!important}.redesign-preview .panel-heading button{max-width:130px!important;font-size:11px!important}
+}
+@media(max-width:355px){.redesign-preview #mobile-start .language-switch{gap:4px!important;padding:5px!important}.redesign-preview #mobile-start .language-flag{width:22px!important;min-width:22px!important;height:16px!important}.redesign-preview #mobile-start .header-actions button{padding:6px!important}.redesign-preview #mobile-start .header-action-label{font-size:10px!important}}
+`}</style><style>{`
+@media(max-width:760px){
+.redesign-preview #mobile-start.header{height:112px!important;min-height:112px!important;max-height:112px!important}
+.redesign-preview #mobile-start .header-actions{flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;width:auto!important;min-width:0!important;flex:0 0 auto!important}
+.redesign-preview #mobile-start .header-actions button{margin:0!important;flex:0 0 auto!important}
+.redesign-preview .hero-category-zone{margin-top:-126px!important;padding-top:164px!important}
+}
+`}</style><style>{`
+@media(max-width:760px){
+.redesign-preview #mobile-start.header{flex-wrap:nowrap!important;box-sizing:border-box!important}
+.redesign-preview #mobile-start .header-right{height:34px!important;min-height:34px!important;max-height:34px!important;flex:0 0 34px!important}
+.redesign-preview #mobile-start .header-actions{height:34px!important;min-height:0!important;max-height:34px!important}
+.redesign-preview #mobile-start .language-switch{height:32px!important;min-height:0!important;box-sizing:border-box!important}
+.redesign-preview #mobile-start .language-flag{box-sizing:border-box!important;padding:0!important;zoom:1!important}
+.redesign-preview #mobile-start .header-actions button{box-sizing:border-box!important;zoom:1!important}
+}
+`}</style><style>{`
+@media(max-width:760px){.redesign-preview #mobile-start .language-switch .language-flag{flex:0 0 25px!important;width:25px!important;min-width:25px!important;max-width:25px!important;height:18px!important;min-height:18px!important;max-height:18px!important}}
+@media(max-width:355px){.redesign-preview #mobile-start .language-switch .language-flag{flex:0 0 22px!important;width:22px!important;min-width:22px!important;max-width:22px!important;height:16px!important;min-height:16px!important;max-height:16px!important}.redesign-preview #mobile-start .header-actions button{padding:6px!important}.redesign-preview #mobile-start .header-action-label{font-size:10px!important}}
 `}</style></main>
   );
 }
