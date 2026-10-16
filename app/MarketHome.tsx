@@ -11559,6 +11559,11 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
                         offer.away
                       ];
 
+                    const displayUnitPrice = offer.unitPrice || Number(offer.price.replace(/[^0-9.,]/g, "").replace(",", ".")) || 0;
+                    const displayQuantity = offer.ticketCount && offer.ticketCount > 0 ? offer.ticketCount : 1;
+                    const displaySubtotal = displayUnitPrice * displayQuantity;
+                    const displayFee = displaySubtotal * PASESPAIN_BUYER_FEE_RATE;
+                    const money = (amount: number) => new Intl.NumberFormat(({es:'es-ES',ca:'ca-ES',en:'en-GB',de:'de-DE'} as const)[language], {style:'currency',currency:'EUR'}).format(amount);
                     return (
                       <article
                         className={`match-card pases-ticket-card${mobileExpandedOfferId === (offer.id || `${offer.home}-${offer.away}-${offer.date}-${index}`) ? " pases-ticket-card-open" : ""}`}
@@ -11624,7 +11629,12 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
 
                         {mobileExpandedOfferId === (offer.id || `${offer.home}-${offer.away}-${offer.date}-${index}`) && (
                           <div className="pases-ticket-details" onClick={(event) => event.stopPropagation()}>
-                            {offer.details && <div className="pases-ticket-description">{translatedOfferDetails(offer.details)}</div>}<div className="preview-ticket-travel"><a href={"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(offer.stadium+", "+offer.city+", España")} target="_blank" rel="noopener noreferrer">{language === 'de' ? 'Anreise zum Stadion planen' : language === 'en' ? 'Plan your stadium journey' : language === 'ca' ? 'Com arribar a l’estadi' : 'Cómo llegar al estadio'} ↗</a><span>{language === 'de' ? 'Aktuelles Wetter' : language === 'en' ? 'Current weather' : language === 'ca' ? 'Temps actual' : 'Tiempo actual'}: {weather.city} · {weather.temperature}° · {weatherText(weather.type)}<small>{language === 'de' ? 'Keine Vorhersage für den Spieltermin.' : language === 'en' ? 'Not a forecast for match day.' : language === 'ca' ? 'No és una previsió per al dia del partit.' : 'No es un pronóstico para el día del partido.'}</small></span></div>
+                            <div className="ticket-detail-schedule"><OfferSchedule offer={offer} language={language} /></div>
+                            <dl className="ticket-price-breakdown" aria-label={({de:'Preisübersicht',en:'Price breakdown',ca:'Desglossament del preu',es:'Desglose del precio'} as const)[language]}>
+                              <div><dt>{displayQuantity} × {money(displayUnitPrice)} <small>{({de:'pro Ticket',en:'per ticket',ca:'per entrada',es:'por entrada'} as const)[language]}</small></dt><dd>{money(displaySubtotal)}</dd></div>
+                              <div><dt>{({de:'Käufergebühr',en:'Buyer service fee',ca:'Servei del comprador',es:'Servicio del comprador'} as const)[language]} ({PASESPAIN_BUYER_FEE_RATE * 100} %)</dt><dd>{money(displayFee)}</dd></div>
+                              <div className="ticket-price-total"><dt>{({de:'Gesamtpreis für dieses Angebot',en:'Total for this listing',ca:'Total d’aquest anunci',es:'Total de este anuncio'} as const)[language]}</dt><dd>{money(displaySubtotal + displayFee)}</dd></div>
+                            </dl>{offer.details && <div className="pases-ticket-description">{translatedOfferDetails(offer.details)}</div>}<div className="preview-ticket-travel"><a href={"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(offer.stadium+", "+offer.city+", España")} target="_blank" rel="noopener noreferrer">{language === 'de' ? 'Anreise zum Stadion planen' : language === 'en' ? 'Plan your stadium journey' : language === 'ca' ? 'Com arribar a l’estadi' : 'Cómo llegar al estadio'} ↗</a><span>{language === 'de' ? 'Aktuelles Wetter' : language === 'en' ? 'Current weather' : language === 'ca' ? 'Temps actual' : 'Tiempo actual'}: {weather.city} · {weather.temperature}° · {weatherText(weather.type)}<small>{language === 'de' ? 'Keine Vorhersage für den Spieltermin.' : language === 'en' ? 'Not a forecast for match day.' : language === 'ca' ? 'No és una previsió per al dia del partit.' : 'No es un pronóstico para el día del partido.'}</small></span></div>
                             <button
                               className="pases-ticket-buy"
                               type="button"
@@ -14401,6 +14411,13 @@ html body:has(.redesign-preview){overflow-x:hidden!important}
 `}</style><style>{`
 @media(max-width:760px){.redesign-preview #mobile-start .language-switch .language-flag{flex:0 0 25px!important;width:25px!important;min-width:25px!important;max-width:25px!important;height:18px!important;min-height:18px!important;max-height:18px!important}}
 @media(max-width:355px){.redesign-preview #mobile-start .language-switch .language-flag{flex:0 0 22px!important;width:22px!important;min-width:22px!important;max-width:22px!important;height:16px!important;min-height:16px!important;max-height:16px!important}.redesign-preview #mobile-start .header-actions button{padding:6px!important}.redesign-preview #mobile-start .header-action-label{font-size:10px!important}}
+`}</style><style>{`
+.redesign-preview .pases-ticket-meta{overflow:hidden!important;align-content:start!important}
+.redesign-preview .pases-ticket-meta small{display:none!important}
+.redesign-preview .ticket-detail-schedule{display:grid;gap:5px;font-size:13px;line-height:1.5;color:#374b60}
+.redesign-preview .ticket-detail-schedule small{display:block!important;line-height:1.5!important;color:#96533f!important}
+.redesign-preview .ticket-price-breakdown{margin:8px 0;padding:14px;border:1px solid #d6dee6;border-radius:13px;background:#ffffffb3;display:grid;gap:12px;font-size:13px;color:#374b60}
+.redesign-preview .ticket-price-breakdown>div{display:flex;justify-content:space-between;gap:16px;align-items:baseline}.redesign-preview .ticket-price-breakdown dt{margin:0;min-width:0}.redesign-preview .ticket-price-breakdown dd{margin:0;white-space:nowrap;font-weight:650;font-variant-numeric:tabular-nums}.redesign-preview .ticket-price-breakdown small{font-size:11px;color:#637184}.redesign-preview .ticket-price-total{padding-top:12px;border-top:1px solid #d6dee6;font-weight:750;color:#253247}
 `}</style></main>
   );
 }
