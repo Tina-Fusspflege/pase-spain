@@ -1864,10 +1864,17 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
           supabaseSession?.user?.id
     );
 
-  const visibleOffers =
-    searchActive
-      ? paseSpainSearchOffers
-      : recommendedOffers;
+  // Sort a copy so the database-backed offer list and cart order remain unchanged.
+  const visibleOffers = [...(searchActive ? paseSpainSearchOffers : recommendedOffers)]
+    .sort((a, b) => {
+      const first = Date.parse(a.date);
+      const second = Date.parse(b.date);
+      const firstValid = Number.isFinite(first);
+      const secondValid = Number.isFinite(second);
+      if (!firstValid) return secondValid ? 1 : 0;
+      if (!secondValid) return -1;
+      return first - second;
+    });
 
   /*
     Alle aktuell sichtbaren Vereine
@@ -11483,6 +11490,7 @@ export default function MarketHome({ preview = false }: { preview?: boolean }) {
                       : t.recommendations
                   }
                 </h2>
+                <span className="ticket-sort-label">{({de:'Nach Spieldatum · Nächstes Spiel zuerst',en:'By match date · Next match first',ca:'Per data · El proper partit primer',es:'Por fecha · Próximo partido primero'} as const)[language]}</span>
 
                 {
                   searchActive && (
@@ -14418,6 +14426,6 @@ html body:has(.redesign-preview){overflow-x:hidden!important}
 .redesign-preview .ticket-detail-schedule small{display:block!important;line-height:1.5!important;color:#96533f!important}
 .redesign-preview .ticket-price-breakdown{margin:8px 0;padding:14px;border:1px solid #d6dee6;border-radius:13px;background:#ffffffb3;display:grid;gap:12px;font-size:13px;color:#374b60}
 .redesign-preview .ticket-price-breakdown>div{display:flex;justify-content:space-between;gap:16px;align-items:baseline}.redesign-preview .ticket-price-breakdown dt{margin:0;min-width:0}.redesign-preview .ticket-price-breakdown dd{margin:0;white-space:nowrap;font-weight:650;font-variant-numeric:tabular-nums}.redesign-preview .ticket-price-breakdown small{font-size:11px;color:#637184}.redesign-preview .ticket-price-total{padding-top:12px;border-top:1px solid #d6dee6;font-weight:750;color:#253247}
-`}</style></main>
+`}</style><style>{`.redesign-preview .ticket-sort-label{display:block;margin-top:7px;font-size:12px;line-height:1.4;font-weight:500;color:#637184}`}</style></main>
   );
 }
